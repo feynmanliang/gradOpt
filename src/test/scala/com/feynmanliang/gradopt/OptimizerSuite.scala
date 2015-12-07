@@ -9,7 +9,7 @@ class OptimizerSuite extends FunSpec {
     describe("when applied to f(x)=x^2") {
       val f = (x:Double) => x*x
 
-        for (x0 <- List(-32D, 4D, 0D, 3D, 50D)) {
+      for (x0 <- List(-32D, 4D, 0D, 3D, 50D)) {
         describe(s"when initialized at x0=${x0}") {
           it("should return a convex interval ") {
             opt.bracket(f, x0) match {
@@ -47,6 +47,19 @@ class OptimizerSuite extends FunSpec {
             assert(f(xnew) <= f(x))
           }
         }
+      }
+    }
+  }
+
+  describe("FunctionWithCounter") {
+    it("correctly counts the number of times a function is called") {
+      for (n <- 10 to 1000 by 100) {
+        val opt = new Optimizer()
+        val cntFn = new opt.FunctionWithCounter((x: Double) => x * x)
+        for (i <- 0 until n) {
+          cntFn(i)
+        }
+        assert(cntFn.numCalls == n)
       }
     }
   }

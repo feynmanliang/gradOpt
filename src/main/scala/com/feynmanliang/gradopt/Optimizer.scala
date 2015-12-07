@@ -18,6 +18,14 @@ private[gradopt] case class PerfDiagnostics(
   numEvalDf: Long)
 
 class Optimizer {
+  private[gradopt] class FunctionWithCounter[-T,+U](f: T => U) extends Function[T,U] {
+    var numCalls: Int = 0
+    override def apply(t: T): U = {
+      numCalls += 1
+      f(t)
+    }
+  }
+
   /**
   * Minimize a convex scalar function `f` with derivative `df` and initial
   * guess `x0`.
@@ -29,17 +37,20 @@ class Optimizer {
       reportPerf: Boolean = false,
       tol: Double = 1E-8): (Option[Double], Option[PerfDiagnostics]) = {
 
+    val fCnt = new FunctionWithCounter(f)
+    val dfCnt = new FunctionWithCounter(df)
+
     // Stream of x values returned by bracket/line search algorithm
     def improve(x: Double): Stream[Double] = {
-      bracket(f, x) match {
+      bracket(fCnt, x) match {
         case Some(BracketInterval(lb,mid,ub)) => {
           // line search on bracket half which gradient points against
-          val halfBkt = if (df(x) > 0) {
+          val halfBkt = if (dfCnt(x) > 0) {
             BracketInterval(lb,mid,mid)
           } else {
             BracketInterval(mid,mid,ub)
           }
-          val xnew = lineSearch(f, x, halfBkt)
+          val xnew = lineSearch(fCnt, x, halfBkt)
           x #:: improve(xnew)
         }
         case None => x #:: Stream.Empty
@@ -50,7 +61,7 @@ class Optimizer {
       .take(5000) // limit to 5000 iteration, TODO: better stopping criterion
       .sliding(2)
       .find(_ match {
-          case x#::y#::xs => math.abs(f(y) - f(x)) < tol
+          case x#::y#::xs => math.abs(fCnt(y) - fCnt(x)) < tol
           case _ => false
         })
       .map(_.drop(1).head)
@@ -60,11 +71,11 @@ class Optimizer {
         .take(5000) // limit to 5000 iteration, TODO: better stopping criterion
         .sliding(2)
         .takeWhile(_ match {
-          case x#::y#::xs => math.abs(f(y) - f(x)) >= tol
+          case x#::y#::xs => math.abs(fCnt(y) - fCnt(x)) >= tol
           case _ => false
         })
         .map(_.drop(1).head)
-      Some(PerfDiagnostics(trace, 0, 0)) // TODO: implement function call counters
+      Some(PerfDiagnostics(trace, fCnt.numCalls, dfCnt.numCalls))
     } else {
       None
     }
@@ -76,7 +87,9 @@ class Optimizer {
   * Brackets the minimum of a scalar function `f`. This function uses `x0` as
   * the midpoint around which to identify the bracket bounds.
   */
-  private[gradopt] def bracket(f: Double => Double, x0: Double): Option[BracketInterval] = {
+  private[gradopt] def bracket(
+      f: Double => Double,
+      x0: Double): Option[BracketInterval] = {
     def doubleBounds(currBracket: BracketInterval): Stream[BracketInterval] =
       currBracket match {
       case BracketInterval(lb, mid, ub) => {
@@ -103,10 +116,10 @@ class Optimizer {
   * TODO: bisection search the candidates
   */
   private[gradopt] def lineSearch(
-      f: Double => Double, x: Double, bracket: BracketInterval): Double = {
+      f: Double => Double , x: Double, bracket: BracketInterval): Double = {
     val numPoints = 100D // TODO: increase this if bracketing doesn't improve
     val candidates = x +: (bracket.lb to bracket.ub by bracket.size/numPoints)
-    candidates.minBy(f)
+    candidates.minBy(f.apply)
   }
 }
 
