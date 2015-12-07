@@ -4,13 +4,23 @@ import org.scalatest._
 
 class OptimizerSuite extends FunSuite {
   test("Bracketing should return an interval where f(x)=x^2 is convex") {
-    def f(x:Double): Double = x*x
-    def g(x:Double): Double = 2D * x
+    val f = (x:Double) => x*x
+    val df = (x:Double) => 2D * x
+
     val opt = new Optimizer()
-    val bracket = opt.bracket(f _, g _, 0)
-    bracket match {
-      case BracketInterval(lb, mid, ub) =>
+
+    opt.bracket(f, 0D) match {
+      case Some(BracketInterval(lb, mid, ub)) => {
         assert(f(lb) > f(mid) && f(ub) > f(mid))
+      }
+      case _ => fail("No bracket interval returned!")
+    }
+
+    opt.bracket(f, 8D) match {
+      case Some(BracketInterval(lb, mid, ub)) => {
+        assert(f(lb) > f(mid) && f(ub) > f(mid))
+      }
+      case _ => fail("No bracket interval returned!")
     }
   }
 }

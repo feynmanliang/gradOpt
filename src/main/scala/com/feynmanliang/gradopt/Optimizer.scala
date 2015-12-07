@@ -9,11 +9,25 @@ case class BracketInterval(lb: Double, mid: Double, ub: Double)
 class Optimizer {
 
   /**
-   * Brackets the minimum of a scalar function `f` with gradient `g`. This function uses `x0`
-   * as the midpoint around which to identify the bracket bounds.
+   * Brackets the minimum of a scalar function `f`. This function uses `x0` as
+   * the midpoint around which to identify the bracket bounds.
    */
-  def bracket(f: Double => Double, df: Double => Double, x0: Double): BracketInterval = {
-    ???
+  def bracket(f: Double => Double, x0: Double): Option[BracketInterval] = {
+    def doublingBrackets(currBracket: BracketInterval): Stream[BracketInterval] =
+      currBracket match {
+        case BracketInterval(lb, mid, ub) => {
+          val delta = mid - lb
+          currBracket #:: doublingBrackets(BracketInterval(lb - delta, mid, ub + delta))
+        }
+      }
+
+    val initBracket = BracketInterval(x0 - 1D, x0, x0 + 1D)
+
+    doublingBrackets(initBracket)
+      .take(5000) // stops after 5000 brackets, TODO: more robust stopping criterion
+      .find(_ match {
+          case BracketInterval(lb, mid, ub) => f(lb) > f(mid) && f(ub) > f(mid)
+      })
   }
 }
 
