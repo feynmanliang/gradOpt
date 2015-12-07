@@ -60,9 +60,9 @@ class Optimizer(
       }
     }
 
-    val xValues = improve(x0)
-      .sliding(2)
+    val xValues = improve(x0).iterator
     val xPairs = xValues
+      .sliding(2)
       .take(maxStepIters) // limit max iterations
       .takeWhile(_ match {
         case x#::y#::_ => math.abs(fCnt(y) - fCnt(x)) >= tol // termination condition
@@ -72,7 +72,7 @@ class Optimizer(
     if (reportPerf) {
       val xPairsSeq = xPairs.toSeq // force the stream to yield a pairs trace
       if (xValues.hasNext) { // hasNext is true as long as as the next bracketing succeeds
-        val trace = (xPairsSeq :+ xValues.next()).map(_.head)
+        val trace = xPairsSeq.map(_.head) :+ xValues.next()
         // trace.length
         val res = if (trace.length == maxStepIters) None else Some(trace.last)
         val perf = PerfDiagnostics(trace, fCnt.numCalls, dfCnt.numCalls)
@@ -98,21 +98,20 @@ class Optimizer(
   private[gradopt] def bracket(
       f: Double => Double,
       x0: Double): Option[BracketInterval] = {
-    def doubleBounds(currBracket: BracketInterval): Stream[BracketInterval] =
+    def nextBracket(currBracket: BracketInterval): Stream[BracketInterval] =
       currBracket match {
       case BracketInterval(lb, mid, ub) => {
-        val delta = mid - lb
-        val newLb = if (f(mid) < f(lb)) lb else lb - delta
-        val newUb = if (f(mid) < f(ub)) ub else ub + delta
-        currBracket #:: doubleBounds(BracketInterval(newLb, mid, newUb))
+        val fMid = f(mid)
+        val newLb = if (fMid < f(lb)) lb else lb - (mid - lb)
+        val newUb = if (fMid < f(ub)) ub else ub + (ub - mid)
+        currBracket #:: nextBracket(BracketInterval(newLb, mid, newUb))
       }
     }
 
-    val initBracket = BracketInterval(x0 - 0.01D, x0, x0 + 0.01D) // TODO: better initial bracket?
-
-    doubleBounds(initBracket)
-    .take(maxBracketIters)
-    .find(_ match {
+    val initBracket = BracketInterval(x0 - 0.1D, x0, x0 + 0.1D) // TODO: better initial bracket?
+    nextBracket(initBracket)
+      .take(maxBracketIters)
+      .find(_ match {
         case BracketInterval(lb, mid, ub) => f(lb) > f(mid) && f(ub) > f(mid)
       })
   }
@@ -149,7 +148,7 @@ object Optimizer {
     }
 
     val opt = new Optimizer()
-    for (x0 <- List(-10, -5.0, -2.0, -1.0, -0.5, -0.1, -0.05, -0.001, 0.0, 0.001, 0.05, 0.1)) {
+    for (x0 <- List(-5, -1, -0.1, -1E-2, -1E-3, -1E-4, -1E-5, 1E-5, 1E-4, 1E-3, 1E-2, 0.1, 1, 5)) {
       opt.minimize(f, df, x0, reportPerf = true) match {
         case (Some(xstar), Some(perf)) =>
           println(f"x0=$x0%4f, xstar=$xstar%4f, numEvalF=${perf.numEvalF}, numEvalDf=${perf.numEvalDf}")
