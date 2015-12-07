@@ -4,7 +4,10 @@ import breeze.linalg._
 import breeze.numerics._
 
 // A bracketing interval where f(mid) < f(lb) and f(mid) < f(ub), guaranteeing a minimum
-case class BracketInterval(lb: Double, mid: Double, ub: Double)
+case class BracketInterval(lb: Double, mid: Double, ub: Double) {
+  def contains(x: Double): Boolean = lb <= x && ub >= x
+  def size: Double = ub - lb
+}
 
 class Optimizer {
 
@@ -33,11 +36,15 @@ class Optimizer {
   }
 
   /**
-   * Performs a line search within a bracketing interval to determine step size.
+   * Performs a line search for x' = x + a*p within a bracketing interval to determine step size.
    * This method linearly interpolates the bracket interval and chooses the minimizer of f.
    * TODO: bisection search the candidates
    */
-   def lineSearch(f: Double => Double, bracket: BracketInterval): Double = ???
+   def lineSearch(f: Double => Double, x: Double, p: Double, bracket: BracketInterval): Double = {
+     val numPoints = 100D // number of points to interpolate within bracket interval
+     val candidates = bracket.lb to bracket.ub by bracket.size/numPoints
+     candidates.minBy(f)
+   }
 }
 
 // vim: set ts=2 sw=2 et sts=2:

@@ -3,18 +3,21 @@ package com.feynmanliang.gradopt
 import org.scalatest._
 
 class OptimizerSuite extends FunSpec {
+  val opt = new Optimizer()
+
   describe("Bracketing") {
     describe("when applied to f(x)=x^2") {
       val f = (x:Double) => x*x
-      val opt = new Optimizer()
 
-      it("should return a convex interval when initialized at [-32, -4, 0, 3, 50]") {
-        for (i <- List(-32D, 4D, 0D, 3D, 50D)) {
-          opt.bracket(f, i) match {
-            case Some(BracketInterval(lb, mid, ub)) => {
-              assert(f(lb) > f(mid) && f(ub) > f(mid))
+        for (x0 <- List(-32D, 4D, 0D, 3D, 50D)) {
+        describe(s"when initialized at x0=${x0}") {
+          it("should return a convex interval ") {
+            opt.bracket(f, x0) match {
+              case Some(BracketInterval(lb, mid, ub)) => {
+                assert(f(lb) > f(mid) && f(ub) > f(mid))
+              }
+              case _ => fail("No bracket interval returned!")
             }
-            case _ => fail("No bracket interval returned!")
           }
         }
       }
@@ -22,10 +25,31 @@ class OptimizerSuite extends FunSpec {
 
     describe("when applied to f(x) = x") {
       val f = (x:Double) => x
-      val opt = new Optimizer()
 
       it ("should not find a bracket region") {
         assert(opt.bracket(f, 0).isEmpty)
+      }
+    }
+  }
+
+  describe("Line search") {
+    describe("when applied to f(x) = x^2") {
+      val f = (x:Double) => x*x
+      val df = (x:Double) => 2.0*x
+      val p = (x:Double) => -df(x) / math.abs(x)
+
+      for (x <- List(-17, 0, 4)) {
+        val bracket = opt.bracket(f, x).get // safe, know x^2 is convex
+        val alpha = opt.lineSearch(f, x, p(x), bracket)
+        val xnew = x + alpha * p(x)
+        describe(s"when initialized with x=${x}") {
+          it("should return a point within the bracket") {
+            assert(bracket.contains(xnew))
+          }
+          it("should not increase f(x)") {
+            assert(f(xnew) <= f(x))
+          }
+        }
       }
     }
   }
