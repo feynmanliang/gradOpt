@@ -12,6 +12,14 @@ private[gradopt] case class BracketInterval(lb: Double, mid: Double, ub: Double)
 class Optimizer {
 
   /**
+   * Minimize a convex scalar function `f` with derivative `df` and initial
+   * guess `x0`.
+   */
+ def minimize(f: Double => Double, df: Double => Double, x0: Double): Double = {
+   ???
+ }
+
+  /**
    * Brackets the minimum of a scalar function `f`. This function uses `x0` as
    * the midpoint around which to identify the bracket bounds.
    */
@@ -37,6 +45,7 @@ class Optimizer {
 
   /**
    * Performs a line search for x' = x + a*p within a bracketing interval to determine step size.
+   * Returns the value x' which minimizes `f` along the line search.
    * This method linearly interpolates the bracket interval and chooses the minimizer of f.
    * TODO: bisection search the candidates
    */

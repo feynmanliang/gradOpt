@@ -35,7 +35,6 @@ class OptimizerSuite extends FunSpec {
   describe("Line search") {
     describe("when applied to f(x) = x^2") {
       val f = (x:Double) => x*x
-      val df = (x:Double) => 2.0*x
 
       for (x <- List(-17, 0, 4)) {
         val bracket = opt.bracket(f, x).get // safe, know x^2 is convex
@@ -46,6 +45,24 @@ class OptimizerSuite extends FunSpec {
           }
           it("should not increase f(x)") {
             assert(f(xnew) <= f(x))
+          }
+        }
+      }
+    }
+  }
+
+  describe("Minimize") {
+    describe("when applied to f(x) = x^2") {
+      val tol = 1E-6
+      val xopt = 0.0D
+
+      val f = (x:Double) => x*x
+      val df = (x:Double) => 2.0*x
+
+      for (x0 <- List(-17, 0, 4)) {
+        describe(s"when initialized at x0=$x0") {
+          it(s"should be within $tol to $xopt") {
+            assert(math.abs(opt.minimize(f, df, x0) - xopt) < tol)
           }
         }
       }
