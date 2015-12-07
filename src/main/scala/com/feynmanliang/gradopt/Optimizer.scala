@@ -2,6 +2,8 @@ package com.feynmanliang.gradopt
 
 import breeze.linalg._
 import breeze.numerics._
+import breeze.plot._
+
 
 // A bracketing interval where f(mid) < f(lb) and f(mid) < f(ub), guaranteeing a minimum
 private[gradopt] case class BracketInterval(lb: Double, mid: Double, ub: Double) {
@@ -9,13 +11,24 @@ private[gradopt] case class BracketInterval(lb: Double, mid: Double, ub: Double)
   def size: Double = ub - lb
 }
 
+// Performance diagnostics for the optimizer
+private[gradopt] case class PerfDiagnostics(
+  xTrace: Iterator[Double],
+  numEvalF: Long,
+  numEvalDf: Long)
+
 class Optimizer {
   /**
   * Minimize a convex scalar function `f` with derivative `df` and initial
   * guess `x0`.
   */
   def minimize(
-      f: Double => Double, df: Double => Double, x0: Double, tol: Double = 1E-8): Option[Double] = {
+      f: Double => Double,
+      df: Double => Double,
+      x0: Double,
+      reportPerf: Boolean = false,
+      tol: Double = 1E-8): (Option[Double], Option[PerfDiagnostics]) = {
+
     // Stream of x values returned by bracket/line search algorithm
     def improve(x: Double): Stream[Double] = {
       bracket(f, x) match {
@@ -33,14 +46,30 @@ class Optimizer {
       }
     }
 
-    improve(x0)
+    val res = improve(x0)
       .take(5000) // limit to 5000 iteration, TODO: better stopping criterion
       .sliding(2)
       .find(_ match {
-        case x#::y#::xs => math.abs(f(y) - f(x)) < tol
-        case _ => false
-      })
+          case x#::y#::xs => math.abs(f(y) - f(x)) < tol
+          case _ => false
+        })
       .map(_.drop(1).head)
+
+    val perf = if (reportPerf) {
+      val trace = improve(x0)
+        .take(5000) // limit to 5000 iteration, TODO: better stopping criterion
+        .sliding(2)
+        .takeWhile(_ match {
+          case x#::y#::xs => math.abs(f(y) - f(x)) >= tol
+          case _ => false
+        })
+        .map(_.drop(1).head)
+      Some(PerfDiagnostics(trace, 0, 0)) // TODO: implement function call counters
+    } else {
+      None
+    }
+
+    (res, perf)
   }
 
   /**
@@ -81,15 +110,27 @@ class Optimizer {
   }
 }
 
+
 /**
 * Client for Optimizer implementing coursework questions
 */
 object Optimizer {
   def q2(): Unit = {
     val f = (x: Double) => pow(x,4D) * cos(1D/x) + 2D * pow(x,4D)
-    val df = (x: Double) => 8D * pow(x,3D) + 4D * pow(x, 3D) * cos(x) - pow(x, 4D) * sin(x)
-    println(f(10))
-    println(df(10))
+    val df = (x: Double) => 8D * pow(x,3D) + 4D * pow(x, 3D) * cos(1D/x) - pow(x, 4D) * sin(1D/x)
+
+    val fig = Figure()
+    val x = linspace(-.1,0.1)
+    fig.subplot(2,1,0) += plot(x, x.map(f))
+    fig.subplot(2,1,1) += plot(x, x.map(df))
+    // fig.saveas("lines.png") // save current figure as a .png, eps and pdf also supported
+
+    val opt = new Optimizer()
+    for (x0 <- (-1.0 to 0.0 by 0.05)) {
+      val (xstar, stats) = opt.minimize(f, df, x0, reportPerf = true)
+      println(s"x0=$x0, xstar=$xstar")
+      println(stats)
+    }
   }
   def main(args: Array[String]) = {
     q2()

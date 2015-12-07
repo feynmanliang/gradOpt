@@ -59,13 +59,25 @@ class OptimizerSuite extends FunSpec {
       val f = (x:Double) => x*x
       val df = (x:Double) => 2.0*x
 
-      for (x0 <- List(-17, 0, 4)) {
+      for (x0 <- List(-17.3, 0.1, 4.2)) {
         describe(s"when initialized at x0=$x0") {
-          it(s"should be within $tol to $xopt") {
-            opt.minimize(f, df, x0) match {
-              case Some(xstar) => assert(math.abs(xstar - xopt) < tol)
-              case None => fail("Minimize failed to return answer")
+          opt.minimize(f, df, x0, reportPerf = true) match {
+            case (Some(xstar), Some(perf)) => {
+              val numIters = perf.xTrace.size
+              it("should have at least one iteration") {
+                assert(numIters >= 1)
+              }
+              it(s"should have evaluated f >= $numIters times") {
+                assert(perf.numEvalF > numIters)
+              }
+              it(s"should have evaluated df >= $numIters times") {
+                assert(perf.numEvalDf > numIters)
+              }
+              it(s"should be within $tol to $xopt") {
+                assert(math.abs(xstar - xopt) < tol)
+              }
             }
+            case _ => fail("Minimize failed to return answer or perf diagnostics")
           }
         }
       }
