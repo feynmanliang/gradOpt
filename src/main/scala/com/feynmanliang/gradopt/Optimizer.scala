@@ -27,7 +27,10 @@ class Optimizer {
         case None => x #:: Stream.Empty
       }
     }
-    println(improve(x0).take(1000).toList)
+
+    if (math.abs(x0 - 4) < 1E-6) {
+      println(improve(x0).take(100).toList)
+    }
 
     improve(x0)
       .take(5000) // limit to 5000 iteration, TODO: better stopping criterion
@@ -72,7 +75,7 @@ class Optimizer {
   */
   private[gradopt] def lineSearch(
       f: Double => Double, x: Double, bracket: BracketInterval): Double = {
-    val numPoints = 100D // number of points to interpolate within bracket interval
+    val numPoints = 1000D // TODO: increase this if bracketing doesn't improve
     val candidates = x +: (bracket.lb to bracket.ub by bracket.size/numPoints)
     candidates.minBy(f)
   }
