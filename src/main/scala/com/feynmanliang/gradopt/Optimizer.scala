@@ -20,16 +20,18 @@ class Optimizer {
     // Stream of x values returned by bracket/line search algorithm
     def improve(x: Double): Stream[Double] = {
       bracket(f, x) match {
-        case Some(bkt) => {
-          val xnew = lineSearch(f, x, bkt)
+        case Some(BracketInterval(lb,mid,ub)) => {
+          // line search on bracket half which gradient points against
+          val halfBkt = if (df(x) > 0) {
+            BracketInterval(lb,mid,mid)
+          } else {
+            BracketInterval(mid,mid,ub)
+          }
+          val xnew = lineSearch(f, x, halfBkt)
           x #:: improve(xnew)
         }
         case None => x #:: Stream.Empty
       }
-    }
-
-    if (math.abs(x0 - 4) < 1E-6) {
-      println(improve(x0).take(100).toList)
     }
 
     improve(x0)
@@ -71,11 +73,10 @@ class Optimizer {
   * Returns the value x' which minimizes `f` along the line search.
   * This method linearly interpolates the bracket interval and chooses the minimizer of f.
   * TODO: bisection search the candidates
-  * TODO: refine bracket interval to only search side gradient is pointing towards
   */
   private[gradopt] def lineSearch(
       f: Double => Double, x: Double, bracket: BracketInterval): Double = {
-    val numPoints = 1000D // TODO: increase this if bracketing doesn't improve
+    val numPoints = 100D // TODO: increase this if bracketing doesn't improve
     val candidates = x +: (bracket.lb to bracket.ub by bracket.size/numPoints)
     candidates.minBy(f)
   }
