@@ -139,10 +139,12 @@ object Optimizer {
     // fig.saveas("lines.png") // save current figure as a .png, eps and pdf also supported
 
     val opt = new Optimizer()
-    for (x0 <- (-1.0 to 0.0 by 0.05)) {
-      val (xstar, stats) = opt.minimize(f, df, x0, reportPerf = true)
-      println(s"x0=$x0, xstar=$xstar")
-      println(stats)
+    for (x0 <- (-1.0 to 1.0 by 0.05)) {
+      opt.minimize(f, df, x0, reportPerf = true) match {
+        case (Some(xstar), Some(perf)) =>
+          println(f"x0=$x0%4f, xstar=$xstar%4f, numEvalF=${perf.numEvalF}, numEvalDf=${perf.numEvalDf}")
+        case _ => println(s"No results for x0=$x0!!!")
+      }
     }
   }
   def main(args: Array[String]) = {
