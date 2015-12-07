@@ -118,7 +118,10 @@ class OptimizerSuite extends FunSpec {
       val tol = 1E-6
       val xopt = DenseVector(1D,2D)
 
-      val f: Vector[Double] => Double = v => pow(norm(v.toDenseVector - DenseVector(1D,2D)),2)
+      val f: Vector[Double] => Double = v => {
+        val tmp = v.toDenseVector - DenseVector(1D,2D)
+        tmp dot tmp
+      }
       val df: Vector[Double] => Vector[Double] = x => {
         require(x.length == 2, "df only defined R^2 -> R^2")
         2D*(x.toDenseVector - DenseVector(1D,2D))
@@ -142,6 +145,7 @@ class OptimizerSuite extends FunSpec {
                 assert(perf.numEvalDf > numIters)
               }
               it(s"should be within $tol to $xopt") {
+                println(xstar - xopt)
                 assert(norm((xstar - xopt).toDenseVector) < tol)
               }
             }

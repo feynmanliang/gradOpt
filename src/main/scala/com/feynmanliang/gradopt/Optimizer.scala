@@ -31,7 +31,7 @@ class Optimizer(
     }
   }
 
-
+  // Overload to permit scalar valued functions
   def minimize(
       f: Double => Double,
       df: Double => Double,
@@ -47,6 +47,7 @@ class Optimizer(
     }
     minimize(vecF, vecDf, DenseVector(x0), reportPerf)
   }
+
   /**
   * Minimize a convex function `f` with derivative `df` and initial
   * guess `x0`.
@@ -71,33 +72,17 @@ class Optimizer(
       }
     }
 
-    val xValues = improve(x0).iterator
-    val xPairs = xValues
-      .sliding(2)
+    val xValues = improve(x0)
       .take(maxStepIters) // limit max iterations
-      .takeWhile(_ match {
-        case x#::y#::_ => math.abs(fCnt(y) - fCnt(x)) >= tol // termination condition
-        case _ => false
-      })
+      .takeWhile((x:Vector[Double]) => norm(df(x).toDenseVector) >= tol) // termination condition based on norm(grad)
 
     if (reportPerf) {
-      val xPairsSeq = xPairs.toSeq // force the stream to yield a pairs trace
-      if (xValues.hasNext) { // hasNext is true as long as as the next bracketing succeeds
-        val trace = xPairsSeq.map(_.head) :+ xValues.next()
-        // trace.length
-        val res = if (trace.length == maxStepIters) None else Some(trace.last)
-        val perf = PerfDiagnostics(trace, fCnt.numCalls, dfCnt.numCalls)
-        (res, Some(perf))
-      } else {
-        (None, None)
-      }
+      val trace = xValues.toSeq
+      val res = if (trace.length == maxStepIters) None else Some(trace.last)
+      val perf = PerfDiagnostics(trace, fCnt.numCalls, dfCnt.numCalls)
+      (res, Some(perf))
     } else {
-      val res = xPairs
-        .find(_ match {
-            case x#::y#::xs => math.abs(fCnt(y) - fCnt(x)) < tol
-            case _ => false
-          })
-        .map(_.last)
+      val res = xValues.find((x:Vector[Double]) => norm(df(x).toDenseVector) >= tol)
       (res, None)
     }
   }
@@ -128,17 +113,6 @@ class Optimizer(
     }
 
     val initBracket = BracketInterval(-0.1D, 0D, 0.1D)
-    if (x0(0) == 0.0) {
-      println(
-        nextBracket(initBracket)
-        .take(15)
-        .map(_ match {
-          case BracketInterval(lb, mid, ub) =>
-            val fMid = fx0 // TODO: adapt midpoint
-            (f(x0 - lb * dfx0), fMid, f(x0 - ub * dfx0))
-        })
-        .toList)
-    }
     nextBracket(initBracket)
       .take(maxBracketIters)
       .find(_ match {
@@ -161,8 +135,8 @@ class Optimizer(
       x: Vector[Double],
       bracket: BracketInterval): Vector[Double] = {
     val numPoints = 100D // TODO: increase this if bracketing doesn't improve
-    val candidates =
-      DenseVector(0.0) +: (bracket.lb to bracket.ub by bracket.size/numPoints).map(_ * dfx)
+    val candidates = (0D +: (bracket.lb to bracket.ub by bracket.size/numPoints))
+      .map(p => x - p * dfx)
     candidates.minBy(f.apply)
   }
 }
