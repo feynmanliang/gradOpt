@@ -36,12 +36,10 @@ class OptimizerSuite extends FunSpec {
     describe("when applied to f(x) = x^2") {
       val f = (x:Double) => x*x
       val df = (x:Double) => 2.0*x
-      val p = (x:Double) => -df(x) / math.abs(x)
 
       for (x <- List(-17, 0, 4)) {
         val bracket = opt.bracket(f, x).get // safe, know x^2 is convex
-        val alpha = opt.lineSearch(f, x, p(x), bracket)
-        val xnew = x + alpha * p(x)
+        val xnew = opt.lineSearch(f, x, bracket)
         describe(s"when initialized with x=${x}") {
           it("should return a point within the bracket") {
             assert(bracket.contains(xnew))

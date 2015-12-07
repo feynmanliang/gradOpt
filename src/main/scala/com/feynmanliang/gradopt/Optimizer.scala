@@ -40,9 +40,9 @@ class Optimizer {
    * This method linearly interpolates the bracket interval and chooses the minimizer of f.
    * TODO: bisection search the candidates
    */
-   def lineSearch(f: Double => Double, x: Double, p: Double, bracket: BracketInterval): Double = {
+   def lineSearch(f: Double => Double, x: Double, bracket: BracketInterval): Double = {
      val numPoints = 100D // number of points to interpolate within bracket interval
-     val candidates = bracket.lb to bracket.ub by bracket.size/numPoints
+     val candidates = x +: (bracket.lb to bracket.ub by bracket.size/numPoints)
      candidates.minBy(f)
    }
 }
