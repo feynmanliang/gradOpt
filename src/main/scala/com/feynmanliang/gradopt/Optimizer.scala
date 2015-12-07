@@ -10,7 +10,6 @@ private[gradopt] case class BracketInterval(lb: Double, mid: Double, ub: Double)
 }
 
 class Optimizer {
-
   /**
   * Minimize a convex scalar function `f` with derivative `df` and initial
   * guess `x0`.
@@ -79,6 +78,21 @@ class Optimizer {
     val numPoints = 100D // TODO: increase this if bracketing doesn't improve
     val candidates = x +: (bracket.lb to bracket.ub by bracket.size/numPoints)
     candidates.minBy(f)
+  }
+}
+
+/**
+* Client for Optimizer implementing coursework questions
+*/
+object Optimizer {
+  def q2(): Unit = {
+    val f = (x: Double) => pow(x,4D) * cos(1D/x) + 2D * pow(x,4D)
+    val df = (x: Double) => 8D * pow(x,3D) + 4D * pow(x, 3D) * cos(x) - pow(x, 4D) * sin(x)
+    println(f(10))
+    println(df(10))
+  }
+  def main(args: Array[String]) = {
+    q2()
   }
 }
 
