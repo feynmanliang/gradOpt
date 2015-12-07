@@ -13,11 +13,14 @@ private[gradopt] case class BracketInterval(lb: Double, mid: Double, ub: Double)
 
 // Performance diagnostics for the optimizer
 private[gradopt] case class PerfDiagnostics(
-  xTrace: Iterator[Double],
+  xTrace: Seq[Double],
   numEvalF: Long,
   numEvalDf: Long)
 
-class Optimizer {
+class Optimizer(
+  var maxStepIters: Int = 5000,
+  var maxBracketIters: Int = 5000
+) {
   private[gradopt] class FunctionWithCounter[-T,+U](f: T => U) extends Function[T,U] {
     var numCalls: Int = 0
     override def apply(t: T): U = {
@@ -57,30 +60,35 @@ class Optimizer {
       }
     }
 
-    val res = improve(x0)
-      .take(5000) // limit to 5000 iteration, TODO: better stopping criterion
+    val xValues = improve(x0)
       .sliding(2)
-      .find(_ match {
-          case x#::y#::xs => math.abs(fCnt(y) - fCnt(x)) < tol
-          case _ => false
-        })
-      .map(_.drop(1).head)
+    val xPairs = xValues
+      .take(maxStepIters) // limit max iterations
+      .takeWhile(_ match {
+        case x#::y#::_ => math.abs(fCnt(y) - fCnt(x)) >= tol // termination condition
+        case _ => false
+      })
 
-    val perf = if (reportPerf) {
-      val trace = improve(x0)
-        .take(5000) // limit to 5000 iteration, TODO: better stopping criterion
-        .sliding(2)
-        .takeWhile(_ match {
-          case x#::y#::xs => math.abs(fCnt(y) - fCnt(x)) >= tol
-          case _ => false
-        })
-        .map(_.drop(1).head)
-      Some(PerfDiagnostics(trace, fCnt.numCalls, dfCnt.numCalls))
+    if (reportPerf) {
+      val xPairsSeq = xPairs.toSeq // force the stream to yield a pairs trace
+      if (xValues.hasNext) { // hasNext is true as long as as the next bracketing succeeds
+        val trace = (xPairsSeq :+ xValues.next()).map(_.head)
+        // trace.length
+        val res = if (trace.length == maxStepIters) None else Some(trace.last)
+        val perf = PerfDiagnostics(trace, fCnt.numCalls, dfCnt.numCalls)
+        (res, Some(perf))
+      } else {
+        (None, None)
+      }
     } else {
-      None
+      val res = xPairs
+        .find(_ match {
+            case x#::y#::xs => math.abs(fCnt(y) - fCnt(x)) < tol
+            case _ => false
+          })
+        .map(_.last)
+      (res, None)
     }
-
-    (res, perf)
   }
 
   /**
@@ -103,7 +111,7 @@ class Optimizer {
     val initBracket = BracketInterval(x0 - 0.01D, x0, x0 + 0.01D) // TODO: better initial bracket?
 
     doubleBounds(initBracket)
-    .take(5000) // stops after 5000 brackets, TODO: more robust stopping criterion
+    .take(maxBracketIters)
     .find(_ match {
         case BracketInterval(lb, mid, ub) => f(lb) > f(mid) && f(ub) > f(mid)
       })
@@ -128,21 +136,24 @@ class Optimizer {
 * Client for Optimizer implementing coursework questions
 */
 object Optimizer {
-  def q2(): Unit = {
+  def q2(showPlot: Boolean = false): Unit = {
     val f = (x: Double) => pow(x,4D) * cos(1D/x) + 2D * pow(x,4D)
     val df = (x: Double) => 8D * pow(x,3D) + 4D * pow(x, 3D) * cos(1D/x) - pow(x, 4D) * sin(1D/x)
 
-    val fig = Figure()
-    val x = linspace(-.1,0.1)
-    fig.subplot(2,1,0) += plot(x, x.map(f))
-    fig.subplot(2,1,1) += plot(x, x.map(df))
-    // fig.saveas("lines.png") // save current figure as a .png, eps and pdf also supported
+    if (showPlot) {
+      val fig = Figure()
+      val x = linspace(-.1,0.1)
+      fig.subplot(2,1,0) += plot(x, x.map(f))
+      fig.subplot(2,1,1) += plot(x, x.map(df))
+      fig.saveas("lines.png") // save current figure as a .png, eps and pdf also supported
+    }
 
     val opt = new Optimizer()
-    for (x0 <- (-1.0 to 1.0 by 0.05)) {
+    for (x0 <- List(-10, -5.0, -2.0, -1.0, -0.5, -0.1, -0.05, -0.001, 0.0, 0.001, 0.05, 0.1)) {
       opt.minimize(f, df, x0, reportPerf = true) match {
         case (Some(xstar), Some(perf)) =>
           println(f"x0=$x0%4f, xstar=$xstar%4f, numEvalF=${perf.numEvalF}, numEvalDf=${perf.numEvalDf}")
+          println(perf.xTrace.toList.map("%2.4f".format(_)))
         case _ => println(s"No results for x0=$x0!!!")
       }
     }
