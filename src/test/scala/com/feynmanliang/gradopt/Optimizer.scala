@@ -62,7 +62,10 @@ class OptimizerSuite extends FunSpec {
       for (x0 <- List(-17, 0, 4)) {
         describe(s"when initialized at x0=$x0") {
           it(s"should be within $tol to $xopt") {
-            assert(math.abs(opt.minimize(f, df, x0) - xopt) < tol)
+            opt.minimize(f, df, x0) match {
+              case Some(xstar) => assert(math.abs(xstar - xopt) < tol)
+              case None => fail("Minimize failed to return answer")
+            }
           }
         }
       }
