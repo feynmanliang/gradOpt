@@ -100,7 +100,7 @@ class Optimizer {
       }
     }
 
-    val initBracket = BracketInterval(x0 - 0.001D, x0, x0 + 0.01D) // TODO: better initial bracket?
+    val initBracket = BracketInterval(x0 - 0.01D, x0, x0 + 0.01D) // TODO: better initial bracket?
 
     doubleBounds(initBracket)
     .take(5000) // stops after 5000 brackets, TODO: more robust stopping criterion
