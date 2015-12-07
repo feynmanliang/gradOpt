@@ -5,7 +5,8 @@ import breeze.numerics._
 import breeze.plot._
 
 
-// A bracketing interval where f(mid) < f(lb) and f(mid) < f(ub), guaranteeing a minimum
+// A bracketing interval where f(x + mid'*df) < f(x + lb'*df) and f(x + mid'*df) < f(x + ub'*df),
+// guaranteeing a minimum
 private[gradopt] case class BracketInterval(lb: Double, mid: Double, ub: Double) {
   def contains(x: Double): Boolean = lb <= x && ub >= x
   def size: Double = ub - lb
@@ -13,13 +14,14 @@ private[gradopt] case class BracketInterval(lb: Double, mid: Double, ub: Double)
 
 // Performance diagnostics for the optimizer
 private[gradopt] case class PerfDiagnostics(
-  xTrace: Seq[Double],
+  xTrace: Seq[Vector[Double]],
   numEvalF: Long,
   numEvalDf: Long)
 
 class Optimizer(
+  var maxBracketIters: Int = 5000,
   var maxStepIters: Int = 5000,
-  var maxBracketIters: Int = 5000
+  var tol: Double = 1E-8
 ) {
   private[gradopt] class FunctionWithCounter[-T,+U](f: T => U) extends Function[T,U] {
     var numCalls: Int = 0
@@ -29,31 +31,40 @@ class Optimizer(
     }
   }
 
-  /**
-  * Minimize a convex scalar function `f` with derivative `df` and initial
-  * guess `x0`.
-  */
+
   def minimize(
       f: Double => Double,
       df: Double => Double,
       x0: Double,
-      reportPerf: Boolean = false,
-      tol: Double = 1E-8): (Option[Double], Option[PerfDiagnostics]) = {
+      reportPerf: Boolean): (Option[Vector[Double]], Option[PerfDiagnostics]) = {
+    val vecF: Vector[Double] => Double = v => {
+      require(v.size == 1, s"vectorized f expected dimension 1 input but got ${v.size}")
+      f(v(0))
+    }
+    val vecDf: Vector[Double] => Vector[Double] = v => {
+      require(v.size == 1, s"vectorized f expected dimension 1 input but got ${v.size}")
+      DenseVector(df(v(0)))
+    }
+    minimize(vecF, vecDf, DenseVector(x0), reportPerf)
+  }
+  /**
+  * Minimize a convex function `f` with derivative `df` and initial
+  * guess `x0`.
+  */
+  def minimize(
+      f: Vector[Double] => Double,
+      df: Vector[Double] => Vector[Double],
+      x0: Vector[Double],
+      reportPerf: Boolean): (Option[Vector[Double]], Option[PerfDiagnostics]) = {
 
     val fCnt = new FunctionWithCounter(f)
     val dfCnt = new FunctionWithCounter(df)
 
     // Stream of x values returned by bracket/line search algorithm
-    def improve(x: Double): Stream[Double] = {
-      bracket(fCnt, x) match {
-        case Some(BracketInterval(lb,mid,ub)) => {
-          // line search on bracket half which gradient points against
-          val halfBkt = if (dfCnt(x) > 0) {
-            BracketInterval(lb,mid,mid)
-          } else {
-            BracketInterval(mid,mid,ub)
-          }
-          val xnew = lineSearch(fCnt, x, halfBkt)
+    def improve(x: Vector[Double]): Stream[Vector[Double]] = {
+      bracket(fCnt, dfCnt, x) match {
+        case Some(bracket) => {
+          val xnew = lineSearch(fCnt, dfCnt(x), x, bracket)
           x #:: improve(xnew)
         }
         case None => x #:: Stream.Empty
@@ -92,27 +103,49 @@ class Optimizer(
   }
 
   /**
-  * Brackets the minimum of a scalar function `f`. This function uses `x0` as
-  * the midpoint around which to identify the bracket bounds.
+  * Brackets the minimum of a function `f`. This function uses `x0` as the
+  * midpoint and `df` as the line around which to find bracket bounds.
+  * TODO: better initialization
+  * TODO: update the midpoint to be something besides 0
   */
   private[gradopt] def bracket(
-      f: Double => Double,
-      x0: Double): Option[BracketInterval] = {
-    def nextBracket(currBracket: BracketInterval): Stream[BracketInterval] =
-      currBracket match {
+      f: Vector[Double] => Double,
+      df: Vector[Double] => Vector[Double],
+      x0: Vector[Double]): Option[BracketInterval] = {
+    val fx0 = f(x0)
+    val dfx0 = df(x0)
+    if (norm(dfx0.toDenseVector) < tol) return Some(BracketInterval(-1E-6, 0D, 1E-6))
+
+    def nextBracket(currBracket: BracketInterval): Stream[BracketInterval] = currBracket match {
       case BracketInterval(lb, mid, ub) => {
-        val fMid = f(mid)
-        val newLb = if (fMid < f(lb)) lb else lb - (mid - lb)
-        val newUb = if (fMid < f(ub)) ub else ub + (ub - mid)
+        val fMid = fx0 // TODO: adapt midpoint
+        val flb = f(x0 - lb * dfx0)
+        val fub = f(x0 - ub * dfx0)
+        val newLb = if (fMid < flb) lb else lb - (mid - lb)
+        val newUb = if (fMid < fub) ub else ub + (ub - mid)
         currBracket #:: nextBracket(BracketInterval(newLb, mid, newUb))
       }
     }
 
-    val initBracket = BracketInterval(x0 - 0.1D, x0, x0 + 0.1D) // TODO: better initial bracket?
+    val initBracket = BracketInterval(-0.1D, 0D, 0.1D)
+    if (x0(0) == 0.0) {
+      println(
+        nextBracket(initBracket)
+        .take(15)
+        .map(_ match {
+          case BracketInterval(lb, mid, ub) =>
+            val fMid = fx0 // TODO: adapt midpoint
+            (f(x0 - lb * dfx0), fMid, f(x0 - ub * dfx0))
+        })
+        .toList)
+    }
     nextBracket(initBracket)
       .take(maxBracketIters)
       .find(_ match {
-        case BracketInterval(lb, mid, ub) => f(lb) > f(mid) && f(ub) > f(mid)
+        case BracketInterval(lb, mid, ub) => {
+          val fMid = fx0 // TODO: adapt midpoint
+          f(x0 - lb * dfx0) > fMid && f(x0 - ub * dfx0) > fMid
+        }
       })
   }
 
@@ -123,9 +156,13 @@ class Optimizer(
   * TODO: bisection search the candidates
   */
   private[gradopt] def lineSearch(
-      f: Double => Double , x: Double, bracket: BracketInterval): Double = {
+      f: Vector[Double] => Double,
+      dfx: Vector[Double],
+      x: Vector[Double],
+      bracket: BracketInterval): Vector[Double] = {
     val numPoints = 100D // TODO: increase this if bracketing doesn't improve
-    val candidates = x +: (bracket.lb to bracket.ub by bracket.size/numPoints)
+    val candidates =
+      DenseVector(0.0) +: (bracket.lb to bracket.ub by bracket.size/numPoints).map(_ * dfx)
     candidates.minBy(f.apply)
   }
 }
@@ -135,9 +172,10 @@ class Optimizer(
 * Client for Optimizer implementing coursework questions
 */
 object Optimizer {
+
   def q2(showPlot: Boolean = false): Unit = {
-    val f = (x: Double) => pow(x,4D) * cos(1D/x) + 2D * pow(x,4D)
-    val df = (x: Double) => 8D * pow(x,3D) + 4D * pow(x, 3D) * cos(1D/x) - pow(x, 4D) * sin(1D/x)
+    val f = (x: Double) => pow(x,4) * cos(pow(x,-1)) + 2D * pow(x,4)
+    val df = (x: Double) => 8D * pow(x,3) + 4D * pow(x, 3) * cos(pow(x,-1)) - pow(x, 4) * sin(pow(x,-1))
 
     if (showPlot) {
       val fig = Figure()
@@ -149,9 +187,9 @@ object Optimizer {
 
     val opt = new Optimizer()
     for (x0 <- List(-5, -1, -0.1, -1E-2, -1E-3, -1E-4, -1E-5, 1E-5, 1E-4, 1E-3, 1E-2, 0.1, 1, 5)) {
-      opt.minimize(f, df, x0, reportPerf = true) match {
+      opt.minimize(f, df, x0, true) match {
         case (Some(xstar), Some(perf)) =>
-          println(f"x0=$x0%4f, xstar=$xstar%4f, numEvalF=${perf.numEvalF}, numEvalDf=${perf.numEvalDf}")
+          println(f"x0=$x0, xstar=$xstar, numEvalF=${perf.numEvalF}, numEvalDf=${perf.numEvalDf}")
           println(perf.xTrace.toList.map("%2.4f".format(_)))
         case _ => println(s"No results for x0=$x0!!!")
       }
