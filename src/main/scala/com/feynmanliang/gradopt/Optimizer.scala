@@ -4,7 +4,7 @@ import breeze.linalg._
 import breeze.numerics._
 
 // A bracketing interval where f(mid) < f(lb) and f(mid) < f(ub), guaranteeing a minimum
-case class BracketInterval(lb: Double, mid: Double, ub: Double) {
+private[gradopt] case class BracketInterval(lb: Double, mid: Double, ub: Double) {
   def contains(x: Double): Boolean = lb <= x && ub >= x
   def size: Double = ub - lb
 }
@@ -15,7 +15,7 @@ class Optimizer {
    * Brackets the minimum of a scalar function `f`. This function uses `x0` as
    * the midpoint around which to identify the bracket bounds.
    */
-  def bracket(f: Double => Double, x0: Double): Option[BracketInterval] = {
+  private[gradopt] def bracket(f: Double => Double, x0: Double): Option[BracketInterval] = {
     def doublingBrackets(currBracket: BracketInterval): Stream[BracketInterval] =
       currBracket match {
         case BracketInterval(lb, mid, ub) => {
@@ -40,7 +40,8 @@ class Optimizer {
    * This method linearly interpolates the bracket interval and chooses the minimizer of f.
    * TODO: bisection search the candidates
    */
-   def lineSearch(f: Double => Double, x: Double, bracket: BracketInterval): Double = {
+   private[gradopt] def lineSearch(
+      f: Double => Double, x: Double, bracket: BracketInterval): Double = {
      val numPoints = 100D // number of points to interpolate within bracket interval
      val candidates = x +: (bracket.lb to bracket.ub by bracket.size/numPoints)
      candidates.minBy(f)
