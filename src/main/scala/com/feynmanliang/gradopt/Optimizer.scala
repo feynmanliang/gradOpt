@@ -17,7 +17,9 @@ class Optimizer {
       currBracket match {
         case BracketInterval(lb, mid, ub) => {
           val delta = mid - lb
-          currBracket #:: doublingBrackets(BracketInterval(lb - delta, mid, ub + delta))
+          val newLb = if (f(mid) < f(lb)) lb else lb - delta
+          val newUb = if (f(mid) < f(ub)) ub else ub + delta
+          currBracket #:: doublingBrackets(BracketInterval(newLb, mid, newUb))
         }
       }
 
@@ -29,6 +31,13 @@ class Optimizer {
           case BracketInterval(lb, mid, ub) => f(lb) > f(mid) && f(ub) > f(mid)
       })
   }
+
+  /**
+   * Performs a line search within a bracketing interval to determine step size.
+   * This method linearly interpolates the bracket interval and chooses the minimizer of f.
+   * TODO: bisection search the candidates
+   */
+   def lineSearch(f: Double => Double, bracket: BracketInterval): Double = ???
 }
 
 // vim: set ts=2 sw=2 et sts=2:
