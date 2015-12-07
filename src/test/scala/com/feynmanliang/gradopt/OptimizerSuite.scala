@@ -9,63 +9,6 @@ import org.scalatest._
 class OptimizerSuite extends FunSpec {
   val opt = new Optimizer()
 
-  describe("Bracketing") {
-    describe("when applied to f(x)=x^2") {
-      val f: Vector[Double] => Double = v => v dot v
-      val df: Vector[Double] => Vector[Double] = x => {
-        require(x.length == 1, "df only defined R -> R")
-        2D*x
-      }
-
-      for (x0 <- List(-32D, -4D, 0D, 3D, 50D).map(DenseVector(_))) {
-        describe(s"when initialized at x0=${x0}") {
-          it("should return a convex interval ") {
-            opt.bracket(f, df, x0) match {
-              case Some(BracketInterval(lb, mid, ub)) => {
-                val dfx0 = df(x0)
-                assert(f(x0 - lb*dfx0) >= f(x0 - mid*dfx0) && f(x0 - ub*dfx0) >= f(x0 - mid*dfx0))
-              }
-              case _ => fail("No bracket interval returned!")
-            }
-          }
-        }
-      }
-    }
-
-    describe("when applied to f(x) = x") {
-      val f = (x:Vector[Double]) => x(0)
-      val df = (x:Vector[Double]) => DenseVector(1D)
-
-      it("should not find a bracket region") {
-        assert(opt.bracket(f, df, DenseVector(0)).isEmpty)
-      }
-    }
-  }
-
-  describe("Line search") {
-    describe("when applied to f(x) = x^2") {
-      val f: Vector[Double] => Double = v => v dot v
-      val df: Vector[Double] => Vector[Double] = x => {
-        require(x.length == 1, "df only defined R -> R")
-        2D*x
-      }
-
-      for (x <- List(-17D, 0D, 4D).map(DenseVector(_))) {
-        val bracket = opt.bracket(f, df, x).get // safe, know x^2 is convex
-        val xnew = opt.lineSearch(f, df(x), x, bracket)
-        describe(s"when initialized with x=${x}") {
-          it("should return a point within the bracket") {
-            val p = if (norm(df(x).toDenseVector) == 0D)0D else norm((x - xnew).toDenseVector) / norm(df(x).toDenseVector)
-            assert(bracket.contains(p))
-          }
-          it("should not increase f(x)") {
-            assert(f(xnew) <= f(x))
-          }
-        }
-      }
-    }
-  }
-
   describe("FunctionWithCounter") {
     it("correctly counts the number of times a function is called") {
       for (n <- 10 to 1000 by 100) {
@@ -145,7 +88,6 @@ class OptimizerSuite extends FunSpec {
                 assert(perf.numEvalDf > numIters)
               }
               it(s"should be within $tol to $xopt") {
-                println(xstar - xopt)
                 assert(norm((xstar - xopt).toDenseVector) < tol)
               }
             }

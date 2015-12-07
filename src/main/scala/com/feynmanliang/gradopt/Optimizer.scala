@@ -65,24 +65,25 @@ class Optimizer(
     def improve(x: Vector[Double]): Stream[Vector[Double]] = {
       bracket(fCnt, dfCnt, x) match {
         case Some(bracket) => {
-          val xnew = lineSearch(fCnt, dfCnt(x), x, bracket)
+          val xnew = lineSearch(fCnt, dfCnt, x, bracket)
           x #:: improve(xnew)
         }
         case None => x #:: Stream.Empty
       }
     }
 
-    val xValues = improve(x0)
+    val xValues = improve(x0).iterator
+    val xTrace = xValues
       .take(maxStepIters) // limit max iterations
       .takeWhile((x:Vector[Double]) => norm(df(x).toDenseVector) >= tol) // termination condition based on norm(grad)
 
     if (reportPerf) {
-      val trace = xValues.toSeq
+      val trace = xTrace.toList :+ xValues.next() // Force the lazy Stream and append the last value
       val res = if (trace.length == maxStepIters) None else Some(trace.last)
       val perf = PerfDiagnostics(trace, fCnt.numCalls, dfCnt.numCalls)
       (res, Some(perf))
     } else {
-      val res = xValues.find((x:Vector[Double]) => norm(df(x).toDenseVector) >= tol)
+      val res = xValues.find((x:Vector[Double]) => norm(df(x).toDenseVector) < tol)
       (res, None)
     }
   }
@@ -99,7 +100,7 @@ class Optimizer(
       x0: Vector[Double]): Option[BracketInterval] = {
     val fx0 = f(x0)
     val dfx0 = df(x0)
-    if (norm(dfx0.toDenseVector) < tol) return Some(BracketInterval(-1E-6, 0D, 1E-6))
+    if (norm(dfx0.toDenseVector) < tol) return Some(BracketInterval(-1E-6, 0D, 1E-2))
 
     def nextBracket(currBracket: BracketInterval): Stream[BracketInterval] = currBracket match {
       case BracketInterval(lb, mid, ub) => {
@@ -125,19 +126,85 @@ class Optimizer(
 
   /**
   * Performs a line search for x' = x + a*p within a bracketing interval to determine step size.
-  * Returns the value x' which minimizes `f` along the line search.
-  * This method linearly interpolates the bracket interval and chooses the minimizer of f.
-  * TODO: bisection search the candidates
+  * Returns the value x' which minimizes `f` along the line search. The chosen step size
+  * satisfies the Strong Wolfe Conditions.
   */
   private[gradopt] def lineSearch(
       f: Vector[Double] => Double,
-      dfx: Vector[Double],
+      df: Vector[Double] => Vector[Double],
       x: Vector[Double],
       bracket: BracketInterval): Vector[Double] = {
-    val numPoints = 100D // TODO: increase this if bracketing doesn't improve
-    val candidates = (0D +: (bracket.lb to bracket.ub by bracket.size/numPoints))
-      .map(p => x - p * dfx)
-    candidates.minBy(f.apply)
+    val c1: Double = 1E-4
+    val c2: Double = 0.9
+    val aMax: Double = 2*bracket.ub // max step length
+
+    val dfx = df(x)
+    val phi: Double => Double = alpha => f(x - alpha * dfx)
+    val dPhi: Double => Double = alpha => df(x - alpha * dfx) dot (-1D*dfx)
+
+
+    val phiZero = phi(0)
+    val dPhiZero = dPhi(0)
+
+    /**
+    * Nocedal Algorithm 3.5, finds a step length \alpha while ensures that
+    * (aPrev, aCurr) contains a point satisfying the Strong Wolfe Conditions at
+    * each iteration.
+    */
+    def chooseAlpha(aPrev: Double, aCurr: Double, firstIter: Boolean): Double = {
+      val phiPrev = phi(aPrev)
+      val phiCurr = phi(aCurr)
+
+      if (phiCurr > phiZero + c1*aCurr*dPhiZero || (phiCurr >= phiPrev && !firstIter)) {
+        zoom(aPrev, aCurr)
+      } else {
+        val dPhiCurr = dPhi(aCurr)
+        if (math.abs(dPhiCurr) <= -1*c2 * dPhiZero) {
+          aCurr
+        }
+        else if (dPhiCurr >= 0) {
+          zoom(aCurr, aPrev)
+        } else {
+          chooseAlpha(aCurr, (aCurr + aMax) / 2D, false)
+        }
+      }
+    }
+
+    /**
+    * Nocedal Algorithm 3.6, generates \alpha_j between \alpha_{lo} and \alpha_{hi} and replaces
+    * one of the two endpoints while ensuring Wolfe conditions hold.
+    */
+    def zoom(alo: Double, ahi: Double): Double = {
+      println(s"zoom: $alo, $ahi")
+      assert(!alo.isNaN && !ahi.isNaN)
+      val aCurr = interpolate(alo, ahi)
+      val lo = alo
+      val hi = if (phi(aCurr) > phiZero + c1 * aCurr * dPhiZero || phi(aCurr) >= phi(lo)) {
+        aCurr
+      } else {
+        ahi
+      }
+      val dPhiCurr = dPhi(aCurr)
+      if (math.abs(dPhiCurr) <= -c2 * dPhiZero) {
+        aCurr
+      } else if (dPhiCurr * (hi - lo) >= 0) {
+        zoom(aCurr, lo)
+      } else {
+        zoom(aCurr, hi)
+      }
+    }
+
+    /**
+    * Finds the minimizer of the Cubic interpolation of the line search
+    * objective \phi(\alpha) between [alpha_{i-1}, alpha_i]. See Nocedal (3.59).
+    **/
+    def interpolate(prev: Double, curr: Double): Double = {
+      val d1 = dPhi(prev) + dPhi(curr) - 3D * (phi(prev) - phi(curr)) / (prev - curr)
+      val d2 = signum(curr - prev) * sqrt(pow(d1,2) - dPhi(prev) * dPhi(curr))
+      curr - (curr - prev) * (dPhi(curr) + d2 - d1) / (dPhi(curr) - dPhi(prev) + 2D*d2)
+    }
+
+    x - chooseAlpha(0, aMax / 2D, true) * dfx
   }
 }
 
@@ -169,8 +236,10 @@ object Optimizer {
       }
     }
   }
+  def q3(showPlot: Boolean = false): Unit = ???
   def main(args: Array[String]) = {
-    q2()
+    // q2(showPlot = false)
+    q3(showPlot = false)
   }
 }
 
