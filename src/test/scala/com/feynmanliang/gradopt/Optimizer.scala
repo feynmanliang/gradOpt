@@ -2,25 +2,31 @@ package com.feynmanliang.gradopt
 
 import org.scalatest._
 
-class OptimizerSuite extends FunSuite {
-  test("Bracketing should return an interval where f(x)=x^2 is convex") {
-    val f = (x:Double) => x*x
-    val df = (x:Double) => 2D * x
+class OptimizerSuite extends FunSpec {
+  describe("Bracketing") {
+    describe("when applied to f(x)=x^2") {
+      val f = (x:Double) => x*x
+      val opt = new Optimizer()
 
-    val opt = new Optimizer()
-
-    opt.bracket(f, 0D) match {
-      case Some(BracketInterval(lb, mid, ub)) => {
-        assert(f(lb) > f(mid) && f(ub) > f(mid))
+      it("should return a convex interval when initialized at [-32, -4, 0, 3, 50]") {
+        for (i <- List(-32D, 4D, 0D, 3D, 50D)) {
+          opt.bracket(f, i) match {
+            case Some(BracketInterval(lb, mid, ub)) => {
+              assert(f(lb) > f(mid) && f(ub) > f(mid))
+            }
+            case _ => fail("No bracket interval returned!")
+          }
+        }
       }
-      case _ => fail("No bracket interval returned!")
     }
 
-    opt.bracket(f, 8D) match {
-      case Some(BracketInterval(lb, mid, ub)) => {
-        assert(f(lb) > f(mid) && f(ub) > f(mid))
+    describe("when applied to f(x) = x") {
+      val f = (x:Double) => x
+      val opt = new Optimizer()
+
+      it ("should not find a bracket region") {
+        assert(opt.bracket(f, 0).isEmpty)
       }
-      case _ => fail("No bracket interval returned!")
     }
   }
 }
