@@ -1,7 +1,7 @@
 lazy val commonSettings = Seq(
   organization := "com.feynmanliang",
   version := "0.1.0",
-  scalaVersion := "2.11.5",
+  scalaVersion := "2.11.5"
 )
 
 lazy val publishSonatypeOSSRH = Seq(
