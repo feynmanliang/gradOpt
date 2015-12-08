@@ -47,8 +47,6 @@ object LineSearch {
   * Performs a line search for x' = x + a*p within a bracketing interval to determine step size.
   * Returns the value x' which minimizes `f` along the line search. The chosen step size
   * satisfies the Strong Wolfe Conditions.
-  *
-  * TODO: rename to approximate
   */
   def chooseStepSize(
       f: Vector[Double] => Double,
@@ -56,15 +54,14 @@ object LineSearch {
       df: Vector[Double] => Vector[Double],
       x: Vector[Double],
       c1: Double = 1E-4,
-      c2: Double = 0.9): Option[Double] = LineSearch.bracket(f, df, x)  match {
-    case None => None
-    case Some(bracket) => {
-      val aMax: Double = 2 // max step length, TODO: use bracket
+      c2: Double = 0.9): Option[Double] = (p, LineSearch.bracket(f, df, x))  match {
+    case (_, _) if norm(p.toDenseVector) < 1E-6 => None // degenerate ray direction
+    case (_, None) => None
+    case (_, Some(bracket)) => {
+      val aMax: Double = 20
 
       val phi: Double => Double = alpha => f(x + alpha * p)
       val dPhi: Double => Double = alpha => df(x + alpha * p) dot (p)
-
-
       val phiZero = phi(0)
       val dPhiZero = dPhi(0)
 

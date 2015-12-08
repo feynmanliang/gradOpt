@@ -13,7 +13,7 @@ private[gradopt] case class BracketInterval(lb: Double, mid: Double, ub: Double)
 
 // Performance diagnostics for the optimizer
 private[gradopt] case class PerfDiagnostics(
-  xTrace: Seq[Vector[Double]],
+  xTrace: Seq[(Vector[Double], Double)],
   numEvalF: Long,
   numEvalDf: Long)
 
@@ -26,10 +26,9 @@ private[gradopt] class FunctionWithCounter[-T,+U](f: T => U) extends Function[T,
   }
 }
 
-
 class Optimizer(
-    var maxStepIters: Int = 500,
-    var tol: Double = 1E-8) {
+    var maxSteps: Int = 25000,
+    var tol: Double = 1E-6) {
   import com.feynmanliang.gradopt.GradientAlgorithm._
   import com.feynmanliang.gradopt.LineSearchConfig._
 
@@ -69,21 +68,21 @@ class Optimizer(
     val fCnt = new FunctionWithCounter(f)
     val dfCnt = new FunctionWithCounter(df)
 
-    val xValues = gradientAlgorithm match {
-      case SteepestDescent => steepestDescent(fCnt, dfCnt, x0).iterator
-      case ConjugateGradient => conjugateGradient(fCnt, dfCnt, x0).iterator
-    }
+    val xValues = (gradientAlgorithm match {
+      case SteepestDescent => steepestDescent(fCnt, dfCnt, x0)
+      case ConjugateGradient => conjugateGradient(fCnt, dfCnt, x0)
+    }).take(maxSteps).iterator
 
-    val xTrace = xValues
-      .take(maxStepIters) // limit max iterations
-      .takeWhile(_._2 >= tol) // termination condition based on norm(grad)
-      .map(_._1)
 
     if (reportPerf) {
-      val trace = xTrace.toList :+ xValues.next()._1 // Force the lazy Stream and append the last value
-      val res = if (trace.length == maxStepIters) None else Some(trace.last)
+      val xValuesSeq = xValues.toSeq
+      val res = xValuesSeq.find(_._2 < tol)
+      val trace = res  match {
+        case Some(xStar) => xValuesSeq.takeWhile(_._2 >= tol) :+ xStar
+        case None => xValuesSeq.takeWhile(_._2 >= tol)
+      }
       val perf = PerfDiagnostics(trace, fCnt.numCalls, dfCnt.numCalls)
-      (res, Some(perf))
+      (res.map(_._1), Some(perf))
     } else {
       val res = xValues.find(_._2 < tol).map(_._1)
       (res, None)
@@ -123,7 +122,11 @@ class Optimizer(
           val newGrad = df(newX)
           val beta = (newGrad dot newGrad) / (grad dot grad) // Fletcher-Reeves rule
           val newP = -newGrad + beta * p
-          (x, norm(grad.toDenseVector)) #:: improve(newX, newGrad, newP)
+          if (norm(newP.toDenseVector) == 0D) {
+            (x, norm(grad.toDenseVector)) #:: (newX, norm(newGrad.toDenseVector)) #:: Stream.Empty
+          } else {
+            (x, norm(grad.toDenseVector)) #:: improve(newX, newGrad, newP)
+          }
         }
         case None => (x, norm(grad.toDenseVector)) #:: Stream.Empty
       }
