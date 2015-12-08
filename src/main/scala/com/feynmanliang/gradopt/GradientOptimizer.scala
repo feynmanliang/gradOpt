@@ -24,6 +24,7 @@ class GradientOptimizer(
       gradientAlgorithm: GradientAlgorithm.GradientAlgorithm,
       lineSearchConfig: LineSearchConfig.LineSearchConfig,
       reportPerf: Boolean): (Option[Vector[Double]], Option[PerfDiagnostics[Vector[Double]]]) = {
+
     val fCnt = new FunctionWithCounter[Vector[Double], Double](x => 0.5D * (x.t * (A * x)) - b.t * x)
     val dfCnt = new FunctionWithCounter[Vector[Double], Vector[Double]](x => A * x - b)
 
@@ -35,7 +36,6 @@ class GradientOptimizer(
       case SteepestDescent => steepestDescent(lineSearch, dfCnt, x0)
       case ConjugateGradient => conjugateGradient(lineSearch, dfCnt, x0)
     }).take(maxSteps).iterator
-
 
     if (reportPerf) {
       val xValuesSeq = xValues.toSeq

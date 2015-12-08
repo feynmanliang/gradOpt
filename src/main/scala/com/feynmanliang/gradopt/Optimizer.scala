@@ -45,7 +45,7 @@ object Optimizer {
       gradOpt.minimize(f, df, x0, SteepestDescent, CubicInterpolation, true) match {
         case (_, Some(perf)) =>
           val (xstar, fstar) = perf.xTrace.last
-          println(f"x0=$x0, xstar=$xstar, fstar=$fstar, numEvalF=${perf.numEvalF}, numEvalDf=${perf.numEvalDf}")
+          println(s"x0:$x0,xstar:$xstar,fstar:$xstar,normGrad:${perf.xTrace.last._2},numSteps:${perf.xTrace.length},fEval:${perf.numEvalF},dfEval:${perf.numEvalDf}")
         case _ => println(s"No results for x0=$x0!!!")
       }
     }
@@ -67,8 +67,8 @@ object Optimizer {
       println(s"Optimizing Rosenbrock function using $algo")
       gradOpt.minimize(f, df, x0, algo, CubicInterpolation, true) match {
         case (_, Some(perf)) =>
-        val (xstar, fstar) = perf.xTrace.last
-          println(f"x0=$x0, xstar=$xstar, fstar=$fstar, numEvalF=${perf.numEvalF}, numEvalDf=${perf.numEvalDf}")
+          val (xstar, fstar) = perf.xTrace.last
+          println(s"x0:$x0,xstar:$xstar,fstar:$xstar,normGrad:${perf.xTrace.last._2},numSteps:${perf.xTrace.length},fEval:${perf.numEvalF},dfEval:${perf.numEvalDf}")
         case _ => println(s"No results for x0=$x0!!!")
       }
     }
@@ -78,27 +78,29 @@ object Optimizer {
     println(s"Optimizing Rosenbrock function using Nedler-Mead")
     nmOpt.minimize(f, 2, 8, true) match {
       case (_, Some(perf)) =>
-      val (sstar, fstar) = perf.xTrace.last
-      val xstar = sstar.points.map(_._1).reduce(_+_)/ (1D*sstar.points.size)
-      println(f"x0=$x0, xstar=$xstar, fstar=$fstar, numEvalF=${perf.numEvalF}, numEvalDf=${perf.numEvalDf}")
+        val (sstar, fstar) = perf.xTrace.last
+        val xstar = sstar.points.map(_._1).reduce(_+_)/ (1D*sstar.points.size)
+        println(s"x0:$x0,xstar:$xstar,fstar:$xstar,normGrad:${perf.xTrace.last._2},numSteps:${perf.xTrace.length},fEval:${perf.numEvalF},dfEval:${perf.numEvalDf}")
       case _ => println(s"No results for x0=$x0!!!")
     }
   }
 
-  def q5(showPlot: Boolean = false): Unit = {
+  def q56(showPlot: Boolean = false): Unit = {
     val gradOpt = new GradientOptimizer(maxSteps=101, tol=1E-4)
     for {
+      lsAlgo <- List(Exact, CubicInterpolation);
       fname <- List("A10.csv", "A100.csv", "A1000.csv", "B10.csv", "B100.csv", "B1000.csv")
+      optAlgo <- List(SteepestDescent, ConjugateGradient)
     } {
       val A: DenseMatrix[Double] = csvread(new File(getClass.getResource("/" + fname).getFile()))
       assert(A.rows == A.cols, "A must be symmetric")
       val n: Int = A.cols
       val b: DenseVector[Double] = 2D * (DenseVector.rand(n) - DenseVector.fill(n){0.5})
 
-      println(s"$fname")
-      gradOpt.minQuadraticForm(A, b, DenseVector.zeros(n), SteepestDescent, Exact, true) match {
+      println(s"lsAlgo:$lsAlgo,fname:$fname,optAlgo:$optAlgo")
+      gradOpt.minQuadraticForm(A, b, DenseVector.zeros(n), optAlgo, lsAlgo, true) match {
         case (res, Some(perf)) =>
-          println(s"$res, ${perf.xTrace.takeRight(2).map(_._2)}, ${perf.xTrace.length}, ${perf.numEvalF}, ${perf.numEvalDf}")
+          println(s"normGrad:${perf.xTrace.last._2},numSteps:${perf.xTrace.length},fEval:${perf.numEvalF},dfEval:${perf.numEvalDf}")
         case _ => throw new Exception("Minimize failed to return perf diagnostics")
       }
     }
@@ -108,8 +110,8 @@ object Optimizer {
 
   def main(args: Array[String]) = {
     //q2(showPlot = false)
-    q4(showPlot = false)
-    //q5(showPlot = false)
+    //q4(showPlot = false)
+    q56(showPlot = false)
   }
 }
 
