@@ -1,12 +1,12 @@
-package com.feynmanliang.gradopt
+package com.feynmanliang.optala
 
 import breeze.linalg._
 import breeze.numerics._
 
 import org.scalatest._
 
-import com.feynmanliang.gradopt.GradientAlgorithm._
-import com.feynmanliang.gradopt.LineSearchConfig._
+import com.feynmanliang.optala.GradientAlgorithm._
+import com.feynmanliang.optala.LineSearchConfig._
 
 class GradientOptimizerSuite extends FunSpec {
   describe("FunctionWithCounter") {

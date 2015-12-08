@@ -1,4 +1,4 @@
-package com.feynmanliang.gradopt
+package com.feynmanliang.optala
 
 import breeze.linalg._
 import breeze.numerics._

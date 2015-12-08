@@ -1,4 +1,4 @@
-package com.feynmanliang.gradopt
+package com.feynmanliang.optala
 
 import breeze.linalg._
 import breeze.numerics._
@@ -11,7 +11,7 @@ object LineSearch {
   * the restriction of `f` to the ray `f(x + alpha*p)` is guaranteed to attain
   * a minimum.
   */
-  private[gradopt] def bracket(
+  private[optala] def bracket(
       f: Vector[Double] => Double,
       df: Vector[Double] => Vector[Double],
       x: Vector[Double],

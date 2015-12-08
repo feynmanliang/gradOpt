@@ -1,4 +1,4 @@
-package com.feynmanliang.gradopt
+package com.feynmanliang.optala
 
 import java.io.File
 
@@ -7,12 +7,12 @@ import breeze.numerics._
 import breeze.plot._
 
 // Performance diagnostics for the optimizer
-private[gradopt] case class PerfDiagnostics[T](
+private[optala] case class PerfDiagnostics[T](
   xTrace: Seq[(T, Double)],
   numEvalF: Long,
   numEvalDf: Long)
 
-private[gradopt] class FunctionWithCounter[-T,+U](f: T => U) extends Function[T,U] {
+private[optala] class FunctionWithCounter[-T,+U](f: T => U) extends Function[T,U] {
   var numCalls: Int = 0
   override def apply(t: T): U = {
     numCalls += 1
@@ -25,8 +25,8 @@ private[gradopt] class FunctionWithCounter[-T,+U](f: T => U) extends Function[T,
 * TODO: move to separate client
 */
 object Optimizer {
-  import com.feynmanliang.gradopt.GradientAlgorithm._
-  import com.feynmanliang.gradopt.LineSearchConfig._
+  import com.feynmanliang.optala.GradientAlgorithm._
+  import com.feynmanliang.optala.LineSearchConfig._
 
   def q2(showPlot: Boolean = false): Unit = {
     val f = (x: Double) => pow(x,4) * cos(pow(x,-1)) + 2D * pow(x,4)
@@ -40,9 +40,9 @@ object Optimizer {
       fig.saveas("lines.png") // save current figure as a .png, eps and pdf also supported
     }
 
-    val gradOpt = new GradientOptimizer(maxSteps=5000, tol=1E-6)
+    val optala = new GradientOptimizer(maxSteps=5000, tol=1E-6)
     for (x0 <- List(-5, -1, -0.1, -1E-2, -1E-3, -1E-4, -1E-5, 1E-5, 1E-4, 1E-3, 1E-2, 0.1, 1, 5)) {
-      gradOpt.minimize(f, df, x0, SteepestDescent, CubicInterpolation, true) match {
+      optala.minimize(f, df, x0, SteepestDescent, CubicInterpolation, true) match {
         case (_, Some(perf)) =>
           val (xstar, fstar) = perf.xTrace.last
           println(s"x0:$x0,xstar:$xstar,fstar:$xstar,normGrad:${perf.xTrace.last._2},numSteps:${perf.xTrace.length},fEval:${perf.numEvalF},dfEval:${perf.numEvalDf}")
@@ -62,10 +62,10 @@ object Optimizer {
     val xOpt = (-1D, 1D)
     val x0 = DenseVector(-3D, -4D)
 
-    val gradOpt = new GradientOptimizer(maxSteps=5000, tol=1E-6)
+    val optala = new GradientOptimizer(maxSteps=5000, tol=1E-6)
     for (algo <- List(SteepestDescent, ConjugateGradient)) {
       println(s"Optimizing Rosenbrock function using $algo")
-      gradOpt.minimize(f, df, x0, algo, CubicInterpolation, true) match {
+      optala.minimize(f, df, x0, algo, CubicInterpolation, true) match {
         case (_, Some(perf)) =>
           val (xstar, fstar) = perf.xTrace.last
           println(s"x0:$x0,xstar:$xstar,fstar:$xstar,normGrad:${perf.xTrace.last._2},numSteps:${perf.xTrace.length},fEval:${perf.numEvalF},dfEval:${perf.numEvalDf}")
@@ -86,7 +86,7 @@ object Optimizer {
   }
 
   def q56(showPlot: Boolean = false): Unit = {
-    val gradOpt = new GradientOptimizer(maxSteps=101, tol=1E-4)
+    val optala = new GradientOptimizer(maxSteps=101, tol=1E-4)
     for {
       lsAlgo <- List(Exact, CubicInterpolation);
       fname <- List("A10.csv", "A100.csv", "A1000.csv", "B10.csv", "B100.csv", "B1000.csv")
@@ -98,7 +98,7 @@ object Optimizer {
       val b: DenseVector[Double] = 2D * (DenseVector.rand(n) - DenseVector.fill(n){0.5})
 
       println(s"lsAlgo:$lsAlgo,fname:$fname,optAlgo:$optAlgo")
-      gradOpt.minQuadraticForm(A, b, DenseVector.zeros(n), optAlgo, lsAlgo, true) match {
+      optala.minQuadraticForm(A, b, DenseVector.zeros(n), optAlgo, lsAlgo, true) match {
         case (res, Some(perf)) =>
           println(s"normGrad:${perf.xTrace.last._2},numSteps:${perf.xTrace.length},fEval:${perf.numEvalF},dfEval:${perf.numEvalDf}")
         case _ => throw new Exception("Minimize failed to return perf diagnostics")

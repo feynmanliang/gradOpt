@@ -1,11 +1,11 @@
-package com.feynmanliang.gradopt
+package com.feynmanliang.optala
 
 import breeze.linalg._
 import breeze.numerics._
 
 // A bracketing interval where f(x + mid'*df) < f(x + lb'*df) and f(x + mid'*df) < f(x + ub'*df),
 // guaranteeing a minimum
-private[gradopt] case class BracketInterval(lb: Double, mid: Double, ub: Double) {
+private[optala] case class BracketInterval(lb: Double, mid: Double, ub: Double) {
   def contains(x: Double): Boolean = lb <= x && ub >= x
   def size: Double = ub - lb
 }
@@ -13,8 +13,8 @@ private[gradopt] case class BracketInterval(lb: Double, mid: Double, ub: Double)
 class GradientOptimizer(
     var maxSteps: Int = 50000,
     var tol: Double = 1E-6) {
-  import com.feynmanliang.gradopt.GradientAlgorithm._
-  import com.feynmanliang.gradopt.LineSearchConfig._
+  import com.feynmanliang.optala.GradientAlgorithm._
+  import com.feynmanliang.optala.LineSearchConfig._
 
   /** Minimizes a quadratic form 0.5 x'Ax - b'x using exact step size */
   def minQuadraticForm(
