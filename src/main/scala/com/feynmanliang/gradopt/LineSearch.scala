@@ -54,10 +54,10 @@ object LineSearch {
       df: Vector[Double] => Vector[Double],
       x: Vector[Double],
       c1: Double = 1E-4,
-      c2: Double = 0.9): Option[Double] = (p, LineSearch.bracket(f, df, x))  match {
-    case (_, _) if norm(p.toDenseVector) < 1E-6 => None // degenerate ray direction
-    case (_, None) => None
-    case (_, Some(bracket)) => {
+      c2: Double = 0.9): Option[Double] = LineSearch.bracket(f, df, x)  match {
+    case _ if norm(p.toDenseVector) < 1E-6 => Some(0D)// degenerate ray direction
+    case None => None // unable to bracket
+    case Some(bracket) => {
       val aMax: Double = 20
 
       val phi: Double => Double = alpha => f(x + alpha * p)
