@@ -50,7 +50,7 @@ class Optimizer(
 
   /**
   * Minimize a convex function `f` with derivative `df` and initial
-  * guess `x0`.
+  * guess `x0`. Uses steepest-descent.
   */
   def minimize(
       f: Vector[Double] => Double,
@@ -65,7 +65,7 @@ class Optimizer(
     def improve(x: Vector[Double]): Stream[Vector[Double]] = {
       bracket(fCnt, dfCnt, x) match {
         case Some(bracket) => {
-          val xnew = lineSearch(fCnt, dfCnt, x, bracket)
+          val xnew = x - lineSearch(fCnt, dfCnt, x, bracket) * dfCnt(x)
           x #:: improve(xnew)
         }
         case None => x #:: Stream.Empty
@@ -128,19 +128,27 @@ class Optimizer(
   * Performs a line search for x' = x + a*p within a bracketing interval to determine step size.
   * Returns the value x' which minimizes `f` along the line search. The chosen step size
   * satisfies the Strong Wolfe Conditions.
+  * TODO: localize all bracketing into linesearch
   */
-  private[gradopt] def lineSearch(
+  def lineSearch(
       f: Vector[Double] => Double,
       df: Vector[Double] => Vector[Double],
       x: Vector[Double],
-      bracket: BracketInterval): Vector[Double] = {
+      bracket: BracketInterval): Double = lineSearch(f, -df(x), df, x)
+
+  def lineSearch(
+      f: Vector[Double] => Double,
+      p: Vector[Double],
+      df: Vector[Double] => Vector[Double],
+      x: Vector[Double]): Double = {
     val c1: Double = 1E-4
     val c2: Double = 0.9
-    val aMax: Double = 2*bracket.ub // max step length
 
-    val dfx = df(x)
-    val phi: Double => Double = alpha => f(x - alpha * dfx)
-    val dPhi: Double => Double = alpha => df(x - alpha * dfx) dot (-1D*dfx)
+    val bracket = this.bracket(f, df, x).get // TODO: terminate search if fail
+    val aMax: Double = 2 // max step length // TODO: why does this fail when set to bracket.ub
+
+    val phi: Double => Double = alpha => f(x + alpha * p)
+    val dPhi: Double => Double = alpha => df(x + alpha * p) dot (p)
 
 
     val phiZero = phi(0)
@@ -175,22 +183,21 @@ class Optimizer(
     * one of the two endpoints while ensuring Wolfe conditions hold.
     */
     def zoom(alo: Double, ahi: Double): Double = {
-      println(s"zoom: $alo, $ahi")
+      //println(s"zoom: $alo, $ahi")
       assert(!alo.isNaN && !ahi.isNaN)
       val aCurr = interpolate(alo, ahi)
-      val lo = alo
-      val hi = if (phi(aCurr) > phiZero + c1 * aCurr * dPhiZero || phi(aCurr) >= phi(lo)) {
-        aCurr
+      //println(s"zoom: $aCurr")
+      if (phi(aCurr) > phiZero + c1 * aCurr * dPhiZero || phi(aCurr) >= phi(alo)) {
+        zoom(alo, aCurr)
       } else {
-        ahi
-      }
-      val dPhiCurr = dPhi(aCurr)
-      if (math.abs(dPhiCurr) <= -c2 * dPhiZero) {
-        aCurr
-      } else if (dPhiCurr * (hi - lo) >= 0) {
-        zoom(aCurr, lo)
-      } else {
-        zoom(aCurr, hi)
+        val dPhiCurr = dPhi(aCurr)
+        if (math.abs(dPhiCurr) <= -c2 * dPhiZero) {
+          aCurr
+        } else if (dPhiCurr * (ahi - alo) >= 0) {
+          zoom(aCurr, alo)
+        } else {
+          zoom(aCurr, ahi)
+        }
       }
     }
 
@@ -204,7 +211,7 @@ class Optimizer(
       curr - (curr - prev) * (dPhi(curr) + d2 - d1) / (dPhi(curr) - dPhi(prev) + 2D*d2)
     }
 
-    x - chooseAlpha(0, aMax / 2D, true) * dfx
+    chooseAlpha(0, aMax / 2D, true)
   }
 }
 

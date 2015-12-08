@@ -19,7 +19,7 @@ class LineSearchSuite extends FunSpec {
 
       for (x <- List(-17D, 0D, 4D).map(DenseVector(_))) {
         val bracket = opt.bracket(f, df, x).get // safe, know x^2 is convex
-        val xnew = opt.lineSearch(f, df, x, bracket)
+        val xnew = x - opt.lineSearch(f, df, x, bracket) * df(x)
         describe(s"when initialized with x=${x}") {
           it("should return a point within the bracket") {
             val p = if (norm(df(x).toDenseVector) == 0D) 0D else norm((x - xnew).toDenseVector) / norm(df(x).toDenseVector)
