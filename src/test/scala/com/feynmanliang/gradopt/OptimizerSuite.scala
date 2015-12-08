@@ -9,9 +9,6 @@ import com.feynmanliang.gradopt.GradientAlgorithm._
 import com.feynmanliang.gradopt.LineSearchConfig._
 
 class OptimizerSuite extends FunSpec {
-  val tol = 1E-5 // tolerance for norm(x* - xOpt)
-  val opt = new Optimizer(maxSteps=30000, tol=1E-6)
-
   describe("FunctionWithCounter") {
     it("correctly counts the number of times a function is called") {
       for (n <- 10 to 1000 by 100) {
@@ -25,6 +22,9 @@ class OptimizerSuite extends FunSpec {
   }
 
   describe("minimize") {
+    val tol = 1E-5 // tolerance for norm(x* - xOpt)
+    val opt = new Optimizer(maxSteps=30000, tol=1E-6)
+
     for {
       gradientAlgorithm <- List(SteepestDescent, ConjugateGradient)
     } describe (s"using $gradientAlgorithm") {
@@ -95,7 +95,8 @@ class OptimizerSuite extends FunSpec {
   }
 
   describe("minQuadraticForm") {
-    val opt = new Optimizer(maxSteps=101, tol=1E-4)
+    val tol = 1E-4 // tolerance for norm(x* - xOpt)
+    val opt = new Optimizer(maxSteps=1000, tol=tol)
 
     describe("When applied to A=[1 0; 0 1], b=[-2 -3]") {
       val A = DenseMatrix((1D, 0D), (0D, 1D))
@@ -103,25 +104,38 @@ class OptimizerSuite extends FunSpec {
       val x = DenseVector(2D, 4D)
       val xOpt = b
 
-      opt.minQuadraticForm(A, b, DenseVector.zeros(A.cols), SteepestDescent, Exact, true) match {
-        case (Some(xStar), Some(perf)) => {
-          val numIters = perf.xTrace.size
-          it("should have at least one iteration") {
-            assert(numIters >= 1)
-          }
-          it(s"should have evaluated f >= $numIters times") {
-            assert(perf.numEvalF > numIters)
-          }
-          it(s"should have evaluated df >= $numIters times") {
-            assert(perf.numEvalDf > numIters)
-          }
-          it(s"should be within $tol to $xOpt") {
-            println(perf.xTrace.toList)
-            println(xStar)
-            assert(norm((xStar - xOpt).toDenseVector) < tol)
+      val x0 = DenseVector.zeros[Double](A.cols)
+
+      for (gradAlgo <- List(SteepestDescent, ConjugateGradient)) {
+        describe(s"using $gradAlgo") {
+          for (lineAlgo <- List(Exact, CubicInterpolation)) {
+            describe(s"using $lineAlgo") {
+              opt.minQuadraticForm(A, b, x0, gradAlgo, lineAlgo, true) match {
+                case (Some(xStar), Some(perf)) => {
+                  val numIters = perf.xTrace.size
+                  it("should have at least one iteration") {
+                    assert(numIters >= 1)
+                  }
+                  lineAlgo match {
+                    case Exact => it(s"should not have evaluated f") {
+                      assert(perf.numEvalF == 0)
+                    }
+                    case CubicInterpolation => it(s"should have evaluated f >= $numIters times") {
+                      assert(perf.numEvalF > numIters)
+                    }
+                  }
+                  it(s"should have evaluated df >= $numIters times") {
+                    assert(perf.numEvalDf > numIters)
+                  }
+                  it(s"should be within $tol to $xOpt") {
+                    assert(norm((xStar - xOpt).toDenseVector) < tol)
+                  }
+                }
+                case _ => fail("Minimize failed to return answer or perf diagnostics")
+              }
+            }
           }
         }
-        case _ => fail("Minimize failed to return answer or perf diagnostics")
       }
     }
   }

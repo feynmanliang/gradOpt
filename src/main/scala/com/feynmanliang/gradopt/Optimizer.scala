@@ -35,7 +35,6 @@ class Optimizer(
   import com.feynmanliang.gradopt.LineSearchConfig._
 
   /** Minimizes a quadratic form 0.5 x'Ax - b'x using exact step size */
-  // TODO: refactor into Optimizer framework
   def minQuadraticForm(
       A: Matrix[Double],
       b: Vector[Double],
@@ -46,29 +45,14 @@ class Optimizer(
     val fCnt = new FunctionWithCounter[Vector[Double], Double](x => 0.5D * (x.t * (A * x)) - b.t * x)
     val dfCnt = new FunctionWithCounter[Vector[Double], Vector[Double]](x => A * x - b)
 
-    /** Steepest Descent */
-    def steepestDescent(
-      f: Vector[Double] => Double,
-      df: Vector[Double] => Vector[Double],
-      x0: Vector[Double]): Stream[(Vector[Double], Double)] = {
-      /** Computes a Stream of x values along steepest descent direction */
-      def improve(x: Vector[Double]): Stream[(Vector[Double], Double)] = {
-        val grad = df(x)
-        val p = -grad // steepest descent direction
-        LineSearch.exactLineSearch(A, grad, x, p) match {
-          case Some(alpha) => {
-            val xNew = x + alpha * p
-            (x, norm(grad.toDenseVector)) #:: improve(xNew)
-          }
-          case None => (x, norm(grad.toDenseVector)) #:: Stream.Empty
-        }
-      }
-      improve(x0)
+    val lineSearch: (Vector[Double], Vector[Double]) => Option[Double] = lineSearchConfig match {
+      case Exact => (x, p) => LineSearch.exactLineSearch(A, dfCnt(x), x, p)
+      case CubicInterpolation => (x, p) => LineSearch.chooseStepSize(fCnt, dfCnt, x, p)
     }
     val xValues = (gradientAlgorithm match {
-        case SteepestDescent => steepestDescent(fCnt, dfCnt, x0)
-        case ConjugateGradient => ???
-      }).take(maxSteps).iterator
+      case SteepestDescent => steepestDescent(lineSearch, dfCnt, x0)
+      case ConjugateGradient => conjugateGradient(lineSearch, dfCnt, x0)
+    }).take(maxSteps).iterator
 
 
     if (reportPerf) {
@@ -122,9 +106,13 @@ class Optimizer(
     val fCnt = new FunctionWithCounter(f)
     val dfCnt = new FunctionWithCounter(df)
 
+    val lineSearch: (Vector[Double], Vector[Double]) => Option[Double] = (x, p) => {
+      LineSearch.chooseStepSize(fCnt, dfCnt, x, p)
+    }
+
     val xValues = (gradientAlgorithm match {
-      case SteepestDescent => steepestDescent(fCnt, dfCnt, x0)
-      case ConjugateGradient => conjugateGradient(fCnt, dfCnt, x0)
+      case SteepestDescent => steepestDescent(lineSearch, dfCnt, x0)
+      case ConjugateGradient => conjugateGradient(lineSearch, dfCnt, x0)
     }).take(maxSteps).iterator
 
 
@@ -145,14 +133,14 @@ class Optimizer(
 
   /** Steepest Descent */
   private def steepestDescent(
-      f: Vector[Double] => Double,
+      lineSearch: (Vector[Double], Vector[Double]) => Option[Double],
       df: Vector[Double] => Vector[Double],
       x0: Vector[Double]): Stream[(Vector[Double], Double)] = {
     /** Computes a Stream of x values along steepest descent direction */
     def improve(x: Vector[Double]): Stream[(Vector[Double], Double)] = {
       val grad = df(x)
       val p = -grad // steepest descent direction
-      LineSearch.chooseStepSize(f, df, x, p) match {
+      lineSearch(x, p) match {
         case Some(alpha) => {
           val xnew = x + alpha * p
           (x, norm(grad.toDenseVector)) #:: improve(xnew)
@@ -165,7 +153,7 @@ class Optimizer(
 
   /** Conjugate Gradient using Fletcher-Reeves rule. */
   private def conjugateGradient(
-      f: Vector[Double] => Double,
+      lineSearch: (Vector[Double], Vector[Double]) => Option[Double],
       df: Vector[Double] => Vector[Double],
       x0: Vector[Double]): Stream[(Vector[Double], Double)] = {
     /** Compute a Stream of x values using CG minimizing `f`. */
@@ -173,7 +161,7 @@ class Optimizer(
         x: Vector[Double],
         grad: Vector[Double],
         p: Vector[Double]): Stream[(Vector[Double], Double)] = {
-      LineSearch.chooseStepSize(f, df, x, p) match {
+      lineSearch(x, p) match {
         case Some(alpha) => {
           val newX = x + alpha * p
           val newGrad = df(newX)
