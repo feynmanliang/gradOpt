@@ -28,7 +28,7 @@ private[gradopt] class FunctionWithCounter[-T,+U](f: T => U) extends Function[T,
 
 
 class Optimizer(
-    var maxStepIters: Int = 5000,
+    var maxStepIters: Int = 500,
     var tol: Double = 1E-8) {
   import com.feynmanliang.gradopt.GradientAlgorithm._
   import com.feynmanliang.gradopt.LineSearchConfig._
@@ -135,12 +135,14 @@ class Optimizer(
 
 object GradientAlgorithm extends Enumeration {
   type GradientAlgorithm = Value
-  val SteepestDescent, ConjugateGradient = Value
+  val SteepestDescent = Value("Steepest Descent")
+  val ConjugateGradient = Value("Conjugate Gradient")
 }
 
 object LineSearchConfig extends Enumeration {
   type LineSearchConfig = Value
-  val CubicInterpolation, Exact = Value
+  val CubicInterpolation = Value("Cubic Interpolation")
+  val Exact = Value("Exact Line Search")
 }
 
 /**

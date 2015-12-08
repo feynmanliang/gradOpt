@@ -72,8 +72,6 @@ class LineSearchSuite extends FunSpec {
       it("should converge in a single step") {
         val p = -(A*x - b) // steepest descent direction
         val xNew = x + LineSearch.exactLineSearch(A, b, p, x) * p
-        print(A*x - b)
-        print(A*xNew - b)
         assert(norm(A*xNew - b) <= 1E-6)
       }
     }
