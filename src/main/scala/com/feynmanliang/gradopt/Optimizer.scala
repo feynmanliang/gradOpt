@@ -4,7 +4,6 @@ import breeze.linalg._
 import breeze.numerics._
 import breeze.plot._
 
-
 // A bracketing interval where f(x + mid'*df) < f(x + lb'*df) and f(x + mid'*df) < f(x + ub'*df),
 // guaranteeing a minimum
 private[gradopt] case class BracketInterval(lb: Double, mid: Double, ub: Double) {
@@ -29,14 +28,19 @@ private[gradopt] class FunctionWithCounter[-T,+U](f: T => U) extends Function[T,
 
 
 class Optimizer(
-  var maxStepIters: Int = 5000,
-  var tol: Double = 1E-8) {
+    var maxStepIters: Int = 5000,
+    var tol: Double = 1E-8) {
+  import GradientAlgorithm._
+  import LineSearchConfig._
 
-  // Overload to permit scalar valued functions
+
+  // Overload which vectorizes scalar-valued functions.
   def minimize(
       f: Double => Double,
       df: Double => Double,
       x0: Double,
+      gradientAlgorithm: GradientAlgorithm.GradientAlgorithm,
+      lineSearchConfig: LineSearchConfig.LineSearchConfig,
       reportPerf: Boolean): (Option[Vector[Double]], Option[PerfDiagnostics]) = {
     val vecF: Vector[Double] => Double = v => {
       require(v.size == 1, s"vectorized f expected dimension 1 input but got ${v.size}")
@@ -46,7 +50,7 @@ class Optimizer(
       require(v.size == 1, s"vectorized f expected dimension 1 input but got ${v.size}")
       DenseVector(df(v(0)))
     }
-    minimize(vecF, vecDf, DenseVector(x0), reportPerf)
+    minimize(vecF, vecDf, DenseVector(x0), gradientAlgorithm, lineSearchConfig, reportPerf)
   }
 
   /**
@@ -57,44 +61,96 @@ class Optimizer(
       f: Vector[Double] => Double,
       df: Vector[Double] => Vector[Double],
       x0: Vector[Double],
+      gradientAlgorithm: GradientAlgorithm,
+      lineSearchConfig: LineSearchConfig,
       reportPerf: Boolean): (Option[Vector[Double]], Option[PerfDiagnostics]) = {
 
+    // Wrap functions with counters to collect performance metrics
     val fCnt = new FunctionWithCounter(f)
     val dfCnt = new FunctionWithCounter(df)
 
-    def improve(x: Vector[Double]): Stream[Vector[Double]] = {
-      LineSearch.chooseStepSize(fCnt, -dfCnt(x), dfCnt, x) match {
-        case Some(alpha) => {
-          val xnew = x - alpha * dfCnt(x)
-          x #:: improve(xnew)
-        }
-        case None => x #:: Stream.Empty
-      }
+    val xValues = gradientAlgorithm match {
+      case SteepestDescent => steepestDescent(fCnt, dfCnt, x0).iterator
+      case ConjugateGradient => conjugateGradient(fCnt, dfCnt, x0).iterator
     }
 
-    val xValues = improve(x0).iterator
     val xTrace = xValues
       .take(maxStepIters) // limit max iterations
-      .takeWhile((x:Vector[Double]) => norm(df(x).toDenseVector) >= tol) // termination condition based on norm(grad)
+      .takeWhile(_._2 >= tol) // termination condition based on norm(grad)
+      .map(_._1)
 
     if (reportPerf) {
-      val trace = xTrace.toList :+ xValues.next() // Force the lazy Stream and append the last value
+      val trace = xTrace.toList :+ xValues.next()._1 // Force the lazy Stream and append the last value
       val res = if (trace.length == maxStepIters) None else Some(trace.last)
       val perf = PerfDiagnostics(trace, fCnt.numCalls, dfCnt.numCalls)
       (res, Some(perf))
     } else {
-      val res = xValues.find((x:Vector[Double]) => norm(df(x).toDenseVector) < tol)
+      val res = xValues.find(_._2 < tol).map(_._1)
       (res, None)
     }
   }
+
+  /** Steepest Descent */
+  private def steepestDescent(
+    f: Vector[Double] => Double,
+    df: Vector[Double] => Vector[Double],
+    x0: Vector[Double]): Stream[(Vector[Double], Double)] = {
+    def improve(x: Vector[Double]): Stream[(Vector[Double], Double)] = {
+      val grad = df(x)
+      LineSearch.chooseStepSize(f, -grad, df, x) match {
+        case Some(alpha) => {
+          val xnew = x - alpha * grad
+          (x, norm(grad.toDenseVector)) #:: improve(xnew)
+        }
+        case None => (x, norm(grad.toDenseVector)) #:: Stream.Empty
+      }
+    }
+    improve(x0)
+  }
+
+  /** Conjugate Gradient */
+  private def conjugateGradient(
+      f: Vector[Double] => Double,
+      df: Vector[Double] => Vector[Double],
+      x0: Vector[Double]): Stream[(Vector[Double], Double)] = {
+    def improve(
+        x: Vector[Double],
+        grad: Vector[Double],
+        p: Vector[Double]): Stream[(Vector[Double], Double)] = {
+      LineSearch.chooseStepSize(f, p, df, x) match {
+        case Some(alpha) => {
+          val newX = x + alpha * p
+          val newGrad = df(newX)
+          val beta = (newGrad dot newGrad) / (grad dot grad) // Fletcher-Reeves rule
+          val newP = -newGrad + beta * p
+          (x, norm(grad.toDenseVector)) #:: improve(newX, newGrad, newP)
+        }
+        case None => (x, norm(grad.toDenseVector)) #:: Stream.Empty
+      }
+    }
+    val dfx0 = df(x0)
+    improve(x0, dfx0, -dfx0)
+  }
 }
 
+object GradientAlgorithm extends Enumeration {
+  type GradientAlgorithm = Value
+  val SteepestDescent, ConjugateGradient = Value
+}
+
+object LineSearchConfig extends Enumeration {
+  type LineSearchConfig = Value
+  val CubicInterpolation, Exact = Value
+}
 
 /**
-* Client for Optimizer implementing coursework questions
+* Companion object for Optimizer.
 */
 object Optimizer {
+  import GradientAlgorithm._
+  import LineSearchConfig._
 
+  // TODO: move this client code out to separate file
   def q2(showPlot: Boolean = false): Unit = {
     val f = (x: Double) => pow(x,4) * cos(pow(x,-1)) + 2D * pow(x,4)
     val df = (x: Double) => 8D * pow(x,3) + 4D * pow(x, 3) * cos(pow(x,-1)) - pow(x, 4) * sin(pow(x,-1))
@@ -109,7 +165,7 @@ object Optimizer {
 
     val opt = new Optimizer()
     for (x0 <- List(-5, -1, -0.1, -1E-2, -1E-3, -1E-4, -1E-5, 1E-5, 1E-4, 1E-3, 1E-2, 0.1, 1, 5)) {
-      opt.minimize(f, df, x0, true) match {
+      opt.minimize(f, df, x0, SteepestDescent, CubicInterpolation, true) match {
         case (Some(xstar), Some(perf)) =>
           println(f"x0=$x0, xstar=$xstar, numEvalF=${perf.numEvalF}, numEvalDf=${perf.numEvalDf}")
           println(perf.xTrace.toList.map("%2.4f".format(_)))
