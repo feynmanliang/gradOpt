@@ -3,15 +3,18 @@ package com.feynmanliang.gradopt
 import breeze.linalg._
 import breeze.numerics._
 
+/** Nelder-Mead simplex, refined at each iteration */
 case class Simplex(points: Seq[(Vector[Double], Double)]) {
-  def centroid(): Vector[Double] = {
-    points.sortBy(_._2).init.map(_._1).reduce(_+_) / (points.size - 1D)
-  }
+  val sortedPoints = points.sortBy(_._2)
+  val n = sortedPoints.size - 1D
 
+  /** Centroid of the first n points */
+  val nCentroid: Vector[Double] = sortedPoints.init.map(_._1).reduce(_+_) / n
+
+  /** Ray from n-centroid to n+1st point */
   def xBar(t: Double): Vector[Double] = {
-    val c = centroid()
-    val xnp1Pt = points.maxBy(_._2)._1
-    c + t * (xnp1Pt - c)
+    val xnp1 = sortedPoints.last._1
+    nCentroid + t * (xnp1 - nCentroid)
   }
 }
 
@@ -35,26 +38,25 @@ class NelderMead() {
     require(init.points.size >= 3, "must have at least 3 points in simplex")
 
     def next(simplex: Simplex): Stream[Simplex] = {
-      val q = simplex.points.sortBy(_._2).init
-
-      val (x1, fx1) = q.head
-      val (xn, fxn) = q.last
-      val (xnp1, fxnp1) = simplex.points.maxBy(_._2)
+      val nPts = simplex.sortedPoints.init
+      val (x1, fx1) = simplex.sortedPoints.head
+      val (xn, fxn) = nPts.last
+      val (xnp1, fxnp1) = simplex.sortedPoints.last
 
       val xRefl = simplex.xBar(-1D)
       val fRefl = f(xRefl)
 
       if (fx1 <= fRefl && fRefl < fxn) {
         // reflected point neither best nor xnp1
-        simplex #:: next(Simplex(q :+ (xRefl, fRefl)))
+        simplex #:: next(Simplex(nPts :+ (xRefl, fRefl)))
       } else if (fRefl < fx1) {
         // reflected point is best, go further
         val xRefl2 = simplex.xBar(-2D)
         val fRefl2 = f(xRefl2)
         if (fRefl2 < fRefl) {
-          simplex #:: next(Simplex(q :+ (xRefl2, fRefl2)))
+          simplex #:: next(Simplex(nPts :+ (xRefl2, fRefl2)))
         } else {
-          simplex #:: next(Simplex(q :+ (xRefl, fRefl)))
+          simplex #:: next(Simplex(nPts :+ (xRefl, fRefl)))
         }
       } else {
         // reflected point worse than x_n, contract
@@ -64,10 +66,10 @@ class NelderMead() {
         val fReflIn = f(xReflIn)
         if (fxn <= fRefl && fRefl < fxnp1 && fReflOut <= fRefl) {
           // try ``outside'' contraction
-          simplex #:: next(Simplex(q :+ (xReflOut, fReflOut)))
+          simplex #:: next(Simplex(nPts :+ (xReflOut, fReflOut)))
         } else if (fReflIn < fxnp1) {
           // try ``inside'' contraction
-          simplex #:: next(Simplex(q :+ (xReflIn, fReflIn)))
+          simplex #:: next(Simplex(nPts :+ (xReflIn, fReflIn)))
         } else {
           // neither outside nor inside contraction acceptable, shrink simplex towards x1
           simplex #:: next(Simplex(simplex.points.map { x =>
