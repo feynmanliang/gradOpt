@@ -50,7 +50,7 @@ class GradientOptimizerSuite extends FunSpec {
           DenseVector(1D,2D),
           List(DenseVector(-17.3,2), DenseVector(0.1,-4), DenseVector(3,4.2))),
         ConvexTestCase(
-          "f(x,y) = (1 - x)^2 + 100 (y - x^2)^2",
+          "Rosenbrock function: f(x,y) = (1 - x)^2 + 100 (y - x^2)^2",
           v => pow(1D - v(0), 2) + 100D * pow(v(1) - pow(v(0), 2),2),
           v => {
             DenseVector(

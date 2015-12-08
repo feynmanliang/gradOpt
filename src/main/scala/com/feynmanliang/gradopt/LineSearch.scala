@@ -74,7 +74,7 @@ object LineSearch {
       * (aPrev, aCurr) contains a point satisfying the Strong Wolfe Conditions at
       * each iteration.
       */
-      def chooseAlpha(aPrev: Double, aCurr: Double, firstIter: Boolean): Double = {
+      def chooseAlpha(aPrev: Double, aCurr: Double, firstIter: Boolean): Option[Double] = {
         val phiPrev = phi(aPrev)
         val phiCurr = phi(aCurr)
 
@@ -83,7 +83,7 @@ object LineSearch {
         } else {
           val dPhiCurr = dPhi(aCurr)
           if (math.abs(dPhiCurr) <= -1*c2 * dPhiZero) {
-            aCurr
+            Some(aCurr)
           }
           else if (dPhiCurr >= 0) {
             zoom(aCurr, aPrev)
@@ -97,20 +97,25 @@ object LineSearch {
       * Nocedal Algorithm 3.6, generates \alpha_j between \alpha_{lo} and \alpha_{hi} and replaces
       * one of the two endpoints while ensuring Wolfe conditions hold.
       */
-      def zoom(alo: Double, ahi: Double): Double = {
+      def zoom(alo: Double, ahi: Double): Option[Double] = {
         assert(!alo.isNaN && !ahi.isNaN)
-        val aCurr = interpolate(alo, ahi)
-        if (phi(aCurr) > phiZero + c1 * aCurr * dPhiZero || phi(aCurr) >= phi(alo)) {
-          zoom(alo, aCurr)
-        } else {
-          val dPhiCurr = dPhi(aCurr)
-          if (math.abs(dPhiCurr) <= -c2 * dPhiZero) {
-            aCurr
-          } else if (dPhiCurr * (ahi - alo) >= 0) {
-            zoom(aCurr, alo)
-          } else {
-            zoom(aCurr, ahi)
+        interpolate(alo, ahi) match {
+          case Some(aCurr) if math.abs(ahi - alo) > 1E-8 => {
+            val phiACurr = phi(aCurr)
+            if (phiACurr > phiZero + c1 * aCurr * dPhiZero || phiACurr >= phi(alo)) {
+              zoom(alo, aCurr)
+            } else {
+              val dPhiCurr = dPhi(aCurr)
+              if (math.abs(dPhiCurr) <= -c2 * dPhiZero) {
+                Some(aCurr)
+              } else if (dPhiCurr * (ahi - alo) >= 0) {
+                zoom(aCurr, alo)
+              } else {
+                zoom(aCurr, ahi)
+              }
+            }
           }
+          case _ => Some((ahi + alo) / 2D)
         }
       }
 
@@ -118,13 +123,15 @@ object LineSearch {
       * Finds the minimizer of the Cubic interpolation of the line search
       * objective \phi(\alpha) between [alpha_{i-1}, alpha_i]. See Nocedal (3.59).
       **/
-      def interpolate(prev: Double, curr: Double): Double = {
+      def interpolate(prev: Double, curr: Double): Option[Double] = {
         val d1 = dPhi(prev) + dPhi(curr) - 3D * (phi(prev) - phi(curr)) / (prev - curr)
         val d2 = signum(curr - prev) * sqrt(pow(d1,2) - dPhi(prev) * dPhi(curr))
-        curr - (curr - prev) * (dPhi(curr) + d2 - d1) / (dPhi(curr) - dPhi(prev) + 2D*d2)
+        val res = curr - (curr - prev) * (dPhi(curr) + d2 - d1) / (dPhi(curr) - dPhi(prev) + 2D*d2)
+
+        if (!res.isNaN) Some(res) else None
       }
 
-      Some(chooseAlpha(0, aMax / 2D, true))
+      chooseAlpha(0, aMax / 2D, true)
     }
   }
 

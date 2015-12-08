@@ -40,18 +40,41 @@ object Optimizer {
       fig.saveas("lines.png") // save current figure as a .png, eps and pdf also supported
     }
 
-    val gradOpt = new GradientOptimizer()
+    val gradOpt = new GradientOptimizer(maxSteps=5000, tol=1E-6)
     for (x0 <- List(-5, -1, -0.1, -1E-2, -1E-3, -1E-4, -1E-5, 1E-5, 1E-4, 1E-3, 1E-2, 0.1, 1, 5)) {
       gradOpt.minimize(f, df, x0, SteepestDescent, CubicInterpolation, true) match {
-        case (Some(xstar), Some(perf)) =>
-          println(f"x0=$x0, xstar=$xstar, numEvalF=${perf.numEvalF}, numEvalDf=${perf.numEvalDf}")
-          println(perf.xTrace.toList.map("%2.4f".format(_)))
+        case (_, Some(perf)) =>
+          val (xstar, fstar) = perf.xTrace.last
+          println(f"x0=$x0, xstar=$xstar, fstar=$fstar, numEvalF=${perf.numEvalF}, numEvalDf=${perf.numEvalDf}")
         case _ => println(s"No results for x0=$x0!!!")
       }
     }
   }
 
-  def q3(showPlot: Boolean = false): Unit = {
+  def q4(showPlot: Boolean = false): Unit = {
+    val f: Vector[Double] => Double = v => pow(1D - v(0), 2) + 100D * pow(v(1) - pow(v(0), 2),2)
+    val df: Vector[Double] => Vector[Double] = v => {
+      DenseVector(
+        -2D*(1 - v(0)) - 400D * v(0) * (-pow(v(0), 2) + v(1)),
+        200D * (-pow(v(0), 2) + v(1))
+      )
+    }
+    val xOpt = (-1D, 1D)
+    val x0 = DenseVector(-3D, -4D)
+
+    val gradOpt = new GradientOptimizer(maxSteps=5000, tol=1E-6)
+    for (algo <- List(SteepestDescent, ConjugateGradient)) {
+      println(s"Optimizing Rosenbrock function using $algo")
+      gradOpt.minimize(f, df, x0, algo, CubicInterpolation, true) match {
+        case (_, Some(perf)) =>
+        val (xstar, fstar) = perf.xTrace.last
+          println(f"x0=$x0, xstar=$xstar, fstar=$fstar, numEvalF=${perf.numEvalF}, numEvalDf=${perf.numEvalDf}")
+        case _ => println(s"No results for x0=$x0!!!")
+      }
+    }
+  }
+
+  def q5(showPlot: Boolean = false): Unit = {
     val gradOpt = new GradientOptimizer(maxSteps=101, tol=1E-4)
     for {
       fname <- List("A10.csv", "A100.csv", "A1000.csv", "B10.csv", "B100.csv", "B1000.csv")
@@ -64,15 +87,18 @@ object Optimizer {
       println(s"$fname")
       gradOpt.minQuadraticForm(A, b, DenseVector.zeros(n), SteepestDescent, Exact, true) match {
         case (res, Some(perf)) =>
-          println(s"$res, ${perf.xTrace.takeRight(2)}, ${perf.xTrace.length}, ${perf.numEvalF}, ${perf.numEvalDf}")
+          println(s"$res, ${perf.xTrace.takeRight(2).map(_._2)}, ${perf.xTrace.length}, ${perf.numEvalF}, ${perf.numEvalDf}")
         case _ => throw new Exception("Minimize failed to return perf diagnostics")
       }
     }
   }
 
+
+
   def main(args: Array[String]) = {
-    // q2(showPlot = false)
-    q3(showPlot = false)
+    //q2(showPlot = false)
+    q4(showPlot = false)
+    //q5(showPlot = false)
   }
 }
 
