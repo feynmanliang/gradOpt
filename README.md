@@ -47,7 +47,7 @@ Installation
 
 In your project's `build.sbt`, add
 ```sbt
-TODO
+TODO: sync with Sonatype and add howto
 ```
 
 Description

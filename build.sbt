@@ -1,11 +1,39 @@
 lazy val commonSettings = Seq(
   organization := "com.feynmanliang",
   version := "0.1.0",
-  scalaVersion := "2.11.5"
+  scalaVersion := "2.11.5",
+)
+
+lazy val publishSonatypeOSSRH = Seq(
+  publishMavenStyle := true,
+  publishTo := {
+    val nexus = "https://oss.sonatype.org/"
+    if (isSnapshot.value)
+      Some("snapshots" at nexus + "content/repositories/snapshots")
+    else
+      Some("releases"  at nexus + "service/local/staging/deploy/maven2")
+  },
+  publishArtifact in Test := false,
+  pomIncludeRepository := { _ => false }, // remove repos for optional dependencies
+  licenses := Seq("MIT" -> url("http://www.opensource.org/licenses/MIT")),
+  homepage := Some(url("https://github.com/feynmanliang/optala")),
+	pomExtra := (
+		<scm>
+			<url>git@github.com:feynmanliang/optala.git</url>
+			<connection>scm:git:git@github.com:feynmanliang/optala.git</connection>
+		</scm>
+		<developers>
+			<developer>
+				<id>feynmanliang</id>
+				<name>Feynman Liang</name>
+				<url>http://feynmanliang.com</url>
+			</developer>
+		</developers>)
 )
 
 lazy val root = (project in file(".")).
   settings(commonSettings: _*).
+  settings(publishSonatypeOSSRH: _*).
   settings(
     name := "optala",
     libraryDependencies ++=  Seq(
