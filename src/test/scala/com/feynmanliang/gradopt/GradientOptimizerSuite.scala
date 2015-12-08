@@ -117,11 +117,11 @@ class GradientOptimizerSuite extends FunSpec {
                     assert(numIters >= 1)
                   }
                   lineAlgo match {
+                    case CubicInterpolation => it(s"should have evaluated f >= $numIters times") {
+                      assert(perf.numEvalF > numIters)
+                    }
                     case Exact => it(s"should not have evaluated f") {
                       assert(perf.numEvalF == 0)
-                    }
-                    case CubicInterpolation => it(s"should have evaluated df >= $numIters times") {
-                      assert(perf.numEvalF > numIters)
                     }
                   }
                   it(s"should have evaluated df >= $numIters times") {
