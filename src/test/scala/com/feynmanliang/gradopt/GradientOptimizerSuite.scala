@@ -120,7 +120,7 @@ class GradientOptimizerSuite extends FunSpec {
                     case Exact => it(s"should not have evaluated f") {
                       assert(perf.numEvalF == 0)
                     }
-                    case CubicInterpolation => it(s"should have evaluated f >= $numIters times") {
+                    case CubicInterpolation => it(s"should have evaluated df >= $numIters times") {
                       assert(perf.numEvalF > numIters)
                     }
                   }

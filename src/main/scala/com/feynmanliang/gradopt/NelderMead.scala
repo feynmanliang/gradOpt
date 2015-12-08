@@ -60,15 +60,15 @@ class NelderMeadOptimizer(
     if (reportPerf) {
       val xValuesSeq = xValues.toSeq
       val res = xValuesSeq.sliding(2).find(x => norm(x(1)._2 - x(0)._2) < tol).map(_(1))
-      val trace = res  match {
+      val trace = res match {
         case Some(xStar) => xValuesSeq
           .sliding(2)
-          .takeWhile(x => norm(x(1)._2 - x(0)._2) < tol)
+          .takeWhile(x => norm(x(1)._2 - x(0)._2) >= tol)
           .map(_(0))
           .toSeq :+ xStar
         case None => xValuesSeq
           .sliding(2)
-          .takeWhile(x => norm(x(1)._2 - x(0)._2) < tol)
+          .takeWhile(x => norm(x(1)._2 - x(0)._2) >= tol)
           .map(_(0))
           .toSeq
       }
