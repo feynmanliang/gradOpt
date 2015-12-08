@@ -30,8 +30,8 @@ private[gradopt] class FunctionWithCounter[-T,+U](f: T => U) extends Function[T,
 class Optimizer(
     var maxStepIters: Int = 5000,
     var tol: Double = 1E-8) {
-  import GradientAlgorithm._
-  import LineSearchConfig._
+  import com.feynmanliang.gradopt.GradientAlgorithm._
+  import com.feynmanliang.gradopt.LineSearchConfig._
 
 
   // Overload which vectorizes scalar-valued functions.
@@ -147,8 +147,8 @@ object LineSearchConfig extends Enumeration {
 * Companion object for Optimizer.
 */
 object Optimizer {
-  import GradientAlgorithm._
-  import LineSearchConfig._
+  import com.feynmanliang.gradopt.GradientAlgorithm._
+  import com.feynmanliang.gradopt.LineSearchConfig._
 
   // TODO: move this client code out to separate file
   def q2(showPlot: Boolean = false): Unit = {

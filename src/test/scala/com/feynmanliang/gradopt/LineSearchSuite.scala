@@ -40,7 +40,7 @@ class LineSearchSuite extends FunSpec {
     }
   }
 
-  describe("Line search") {
+  describe("Approximate line search") {
     describe("when applied to f(x) = x^2") {
       val f: Vector[Double] => Double = v => v dot v
       val df: Vector[Double] => Vector[Double] = x => {
@@ -60,6 +60,21 @@ class LineSearchSuite extends FunSpec {
             assert(f(xnew) <= f(x))
           }
         }
+      }
+    }
+  }
+
+  describe("Exact line search") {
+    describe("When applied to A=[1 0; 0 1], b=[-2 -3]") {
+      val A = DenseMatrix((1D, 0D), (0D, 1D))
+      val b = DenseVector(-2D, -3D)
+      val x = DenseVector(2D, 4D)
+      it("should converge in a single step") {
+        val p = -(A*x - b) // steepest descent direction
+        val xNew = x + LineSearch.exactLineSearch(A, b, p, x) * p
+        print(A*x - b)
+        print(A*xNew - b)
+        assert(norm(A*xNew - b) <= 1E-6)
       }
     }
   }

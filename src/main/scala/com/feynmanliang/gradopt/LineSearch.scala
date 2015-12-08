@@ -5,6 +5,7 @@ import breeze.numerics._
 import breeze.plot._
 
 object LineSearch {
+
   /**
   * Brackets the minimum of a function `f`. This function uses `x0` as the
   * midpoint and `df` as the line around which to find bracket bounds.
@@ -46,6 +47,8 @@ object LineSearch {
   * Performs a line search for x' = x + a*p within a bracketing interval to determine step size.
   * Returns the value x' which minimizes `f` along the line search. The chosen step size
   * satisfies the Strong Wolfe Conditions.
+  *
+  * TODO: rename to approximate
   */
   def chooseStepSize(
       f: Vector[Double] => Double,
@@ -122,6 +125,20 @@ object LineSearch {
 
       Some(chooseAlpha(0, aMax / 2D, true))
     }
+  }
+
+
+  /**
+  * Computes the exact step size alpha required to minimize a quadratic form.
+  * See Nocedal (3.55).
+  */
+  def exactLineSearch(
+      A: Matrix[Double],
+      b: Vector[Double],
+      p: Vector[Double],
+      x: Vector[Double]): Double = {
+    val grad = A*x - b
+    -(grad.t * p) / (p.t * (A * p))
   }
 }
 
