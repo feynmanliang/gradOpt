@@ -46,6 +46,7 @@ class NelderMead() {
       val xRefl = simplex.xBar(-1D)
       val fRefl = f(xRefl)
 
+      
       if (fx1 <= fRefl && fRefl < fxn) {
         // reflected point neither best nor xnp1
         simplex #:: next(Simplex(nPts :+ (xRefl, fRefl)))
@@ -60,26 +61,28 @@ class NelderMead() {
         }
       } else {
         // reflected point worse than x_n, contract
+        
         val xReflOut = simplex.xBar(-.5D)
         val fReflOut = f(xReflOut)
-        val xReflIn = simplex.xBar(.5D)
-        val fReflIn = f(xReflIn)
         if (fxn <= fRefl && fRefl < fxnp1 && fReflOut <= fRefl) {
           // try ``outside'' contraction
           simplex #:: next(Simplex(nPts :+ (xReflOut, fReflOut)))
-        } else if (fReflIn < fxnp1) {
-          // try ``inside'' contraction
-          simplex #:: next(Simplex(nPts :+ (xReflIn, fReflIn)))
-        } else {
-          // neither outside nor inside contraction acceptable, shrink simplex towards x1
-          simplex #:: next(Simplex(simplex.points.map { x =>
-            val newX = .5D * (x1 + x._1)
-            (newX, f(newX))
-          }))
+        } else{
+          val xReflIn = simplex.xBar(.5D)
+          val fReflIn = f(xReflIn)
+          if (fReflIn < fxnp1) {
+            // try ``inside'' contraction
+            simplex #:: next(Simplex(nPts :+ (xReflIn, fReflIn)))
+          } else {
+            // neither outside nor inside contraction acceptable, shrink simplex towards x1
+            simplex #:: next(Simplex(simplex.points.map { x =>
+              val newX = .5D * (x1 + x._1)
+              (newX, f(newX))
+            }))
+          }
         }
       }
     }
-
     next(init)
   }
 }
