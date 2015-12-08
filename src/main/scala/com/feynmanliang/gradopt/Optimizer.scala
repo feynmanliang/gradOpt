@@ -96,9 +96,10 @@ class Optimizer(
     x0: Vector[Double]): Stream[(Vector[Double], Double)] = {
     def improve(x: Vector[Double]): Stream[(Vector[Double], Double)] = {
       val grad = df(x)
-      LineSearch.chooseStepSize(f, -grad, df, x) match {
+      val p = -grad // steepest descent direction
+      LineSearch.chooseStepSize(f, df, x, p) match {
         case Some(alpha) => {
-          val xnew = x - alpha * grad
+          val xnew = x + alpha * p
           (x, norm(grad.toDenseVector)) #:: improve(xnew)
         }
         case None => (x, norm(grad.toDenseVector)) #:: Stream.Empty
@@ -107,32 +108,29 @@ class Optimizer(
     improve(x0)
   }
 
-  /** Conjugate Gradient */
+  /** Conjugate Gradient using Fletcher-Reeves rule. */
   private def conjugateGradient(
       f: Vector[Double] => Double,
       df: Vector[Double] => Vector[Double],
       x0: Vector[Double]): Stream[(Vector[Double], Double)] = {
+    /** Compute a Stream of x values using CG minimizing `f`. */
     def improve(
         x: Vector[Double],
         grad: Vector[Double],
         p: Vector[Double]): Stream[(Vector[Double], Double)] = {
-      LineSearch.chooseStepSize(f, p, df, x) match {
+      LineSearch.chooseStepSize(f, df, x, p) match {
         case Some(alpha) => {
           val newX = x + alpha * p
           val newGrad = df(newX)
           val beta = (newGrad dot newGrad) / (grad dot grad) // Fletcher-Reeves rule
           val newP = -newGrad + beta * p
-          if (norm(newP.toDenseVector) == 0D) {
-            (x, norm(grad.toDenseVector)) #:: (newX, norm(newGrad.toDenseVector)) #:: Stream.Empty
-          } else {
-            (x, norm(grad.toDenseVector)) #:: improve(newX, newGrad, newP)
-          }
+          (x, norm(grad.toDenseVector)) #:: improve(newX, newGrad, newP)
         }
         case None => (x, norm(grad.toDenseVector)) #:: Stream.Empty
       }
     }
     val dfx0 = df(x0)
-    improve(x0, dfx0, -dfx0)
+    improve(x0, dfx0, -dfx0) // initialize p to be steepest descent direction
   }
 }
 

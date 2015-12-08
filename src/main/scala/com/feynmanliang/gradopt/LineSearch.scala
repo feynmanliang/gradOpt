@@ -7,40 +7,45 @@ import breeze.plot._
 object LineSearch {
 
   /**
-  * Brackets the minimum of a function `f`. This function uses `x0` as the
-  * midpoint and `df` as the line around which to find bracket bounds.
-  * TODO: better initialization
-  * TODO: update the midpoint to be something besides 0
+  * Brackets a step size `alpha` such that for some value within the bracket
+  * the restriction of `f` to the ray `f(x + alpha*p)` is guaranteed to attain
+  * a minimum.
   */
   private[gradopt] def bracket(
       f: Vector[Double] => Double,
       df: Vector[Double] => Vector[Double],
-      x0: Vector[Double],
+      x: Vector[Double],
+      p: Vector[Double],
       maxBracketIters: Int = 5000): Option[BracketInterval] = {
-    val fx0 = f(x0)
-    val dfx0 = df(x0)
-    if (norm(dfx0.toDenseVector) < 1E-6) return Some(BracketInterval(-1E-6, 0D, 1E-2))
+    val (phi, dPhi) = restrictRay(f, df, x, p)
+    val fx0 = phi(0)
+    val dfx0 = dPhi(0)
 
-    def nextBracket(currBracket: BracketInterval): Stream[BracketInterval] = currBracket match {
-      case BracketInterval(lb, mid, ub) => {
-        val fMid = fx0 // TODO: adapt midpoint
-        val flb = f(x0 - lb * dfx0)
-        val fub = f(x0 - ub * dfx0)
-        val newLb = if (fMid < flb) lb else lb - (mid - lb)
-        val newUb = if (fMid < fub) ub else ub + (ub - mid)
-        currBracket #:: nextBracket(BracketInterval(newLb, mid, newUb))
-      }
-    }
-
-    val initBracket = BracketInterval(-0.1D, 0D, 0.1D)
-    nextBracket(initBracket)
-      .take(maxBracketIters)
-      .find(_ match {
+    if (norm(dfx0) == 0.0D) {
+      Some(BracketInterval(-1E-2, 0D, 1E-2))
+    } else {
+      /** A stream of successively expanding brackets until a valid bracket is found */
+      def nextBracket(currBracket: BracketInterval): Stream[BracketInterval] = currBracket match {
         case BracketInterval(lb, mid, ub) => {
           val fMid = fx0 // TODO: adapt midpoint
-          f(x0 - lb * dfx0) > fMid && f(x0 - ub * dfx0) > fMid
+          val flb = phi(lb)
+          val fub = phi(ub)
+          val newLb = if (fMid < flb) lb else lb - (mid - lb)
+          val newUb = if (fMid < fub) ub else ub + (ub - mid)
+          currBracket #:: nextBracket(BracketInterval(newLb, mid, newUb))
         }
-      })
+      }
+
+      val initBracket = BracketInterval(-1E-2D, 0D, 1E-2D)
+      nextBracket(initBracket)
+      .take(maxBracketIters)
+      .find(_ match {
+          case BracketInterval(lb, mid, ub) => {
+            val fMid = fx0 // TODO: adapt midpoint
+            phi(lb) > fMid && phi(ub) > fMid
+          }
+        })
+    }
   }
 
   /**
@@ -50,18 +55,17 @@ object LineSearch {
   */
   def chooseStepSize(
       f: Vector[Double] => Double,
-      p: Vector[Double],
       df: Vector[Double] => Vector[Double],
       x: Vector[Double],
+      p: Vector[Double],
       c1: Double = 1E-4,
-      c2: Double = 0.9): Option[Double] = LineSearch.bracket(f, df, x)  match {
+      c2: Double = 0.9): Option[Double] = LineSearch.bracket(f, df, x, p) match {
     case _ if norm(p.toDenseVector) < 1E-6 => Some(0D)// degenerate ray direction
     case None => None // unable to bracket
     case Some(bracket) => {
-      val aMax: Double = 20
+      val aMax: Double = bracket.ub // min guaranteed to be attained by alpha within bracket
 
-      val phi: Double => Double = alpha => f(x + alpha * p)
-      val dPhi: Double => Double = alpha => df(x + alpha * p) dot (p)
+      val (phi, dPhi) = restrictRay(f, df, x, p)
       val phiZero = phi(0)
       val dPhiZero = dPhi(0)
 
@@ -122,6 +126,15 @@ object LineSearch {
 
       Some(chooseAlpha(0, aMax / 2D, true))
     }
+  }
+
+  /** Restricts a vector function `f` with derivative `df` along ray `f(x + alpha * p)` */
+  private def restrictRay(
+      f: Vector[Double] => Double,
+      df: Vector[Double] => Vector[Double],
+      x: Vector[Double],
+      p: Vector[Double]): (Double => Double, Double => Double) = {
+    (alpha => f(x + alpha * p), alpha => df(x + alpha * p) dot (p))
   }
 
 

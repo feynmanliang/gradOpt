@@ -18,7 +18,7 @@ class LineSearchSuite extends FunSpec {
       for (x0 <- List(-32D, -4D, 0D, 3D, 50D).map(DenseVector(_))) {
         describe(s"when initialized at x0=${x0}") {
           it("should return a convex interval ") {
-            LineSearch.bracket(f, df, x0) match {
+            LineSearch.bracket(f, df, x0, -df(x0)) match {
               case Some(BracketInterval(lb, mid, ub)) => {
                 val dfx0 = df(x0)
                 assert(f(x0 - lb*dfx0) >= f(x0 - mid*dfx0) && f(x0 - ub*dfx0) >= f(x0 - mid*dfx0))
@@ -35,7 +35,7 @@ class LineSearchSuite extends FunSpec {
       val df = (x:Vector[Double]) => DenseVector(1D)
 
       it("should not find a bracket region") {
-        assert(LineSearch.bracket(f, df, DenseVector(0)).isEmpty)
+        assert(LineSearch.bracket(f, df, DenseVector(0), df(DenseVector(0))).isEmpty)
       }
     }
   }
@@ -49,8 +49,8 @@ class LineSearchSuite extends FunSpec {
       }
 
       for (x <- List(-17D, 0D, 4D).map(DenseVector(_))) {
-        val bracket = LineSearch.bracket(f, df, x).get // safe, know x^2 is convex
-        val xnew = x - LineSearch.chooseStepSize(f, -df(x), df, x).get * df(x)
+        val bracket = LineSearch.bracket(f, df, x, -df(x)).get // safe, know x^2 is convex
+        val xnew = x - LineSearch.chooseStepSize(f, df, x, -df(x)).get * df(x)
         describe(s"when initialized with x=${x}") {
           it("should return a point within the bracket") {
             val p = if (norm(df(x).toDenseVector) == 0D) 0D else norm((x - xnew).toDenseVector) / norm(df(x).toDenseVector)
