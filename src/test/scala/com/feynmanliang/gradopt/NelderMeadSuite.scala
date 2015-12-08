@@ -15,23 +15,11 @@ class NelderMeadSuite extends FunSpec {
           DenseVector(-.1D,-3D),
           DenseVector(-2D,7D))
         .map(x => (x,f(x))))
-      val nm = new NelderMead()
+      val nm = new NelderMeadOptimizer()
 
-      println(
-        nm.minimize(f, init)
-        .drop(1000)
-        .take(10)
-        .map(_.points.map(_._2).min)
-        .toList)
+      println(nm.minimize(f, init, true))
 
-      println(
-        nm.minimize(f, 2, 5)
-        .drop(1000)
-        .take(10)
-        .map(s => {
-          s.points.map(_._2).sum / (s.points.size * 1D)
-        })
-        .toList)
+      println(nm.minimize(f, 2, 5, true))
     }
   }
 }

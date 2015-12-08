@@ -8,7 +8,7 @@ import org.scalatest._
 import com.feynmanliang.gradopt.GradientAlgorithm._
 import com.feynmanliang.gradopt.LineSearchConfig._
 
-class OptimizerSuite extends FunSpec {
+class GradientOptimizerSuite extends FunSpec {
   describe("FunctionWithCounter") {
     it("correctly counts the number of times a function is called") {
       for (n <- 10 to 1000 by 100) {
@@ -23,7 +23,7 @@ class OptimizerSuite extends FunSpec {
 
   describe("minimize") {
     val tol = 1E-5 // tolerance for norm(x* - xOpt)
-    val opt = new Optimizer(maxSteps=30000, tol=1E-6)
+    val opt = new GradientOptimizer(maxSteps=30000, tol=1E-6)
 
     for {
       gradientAlgorithm <- List(SteepestDescent, ConjugateGradient)
@@ -96,7 +96,7 @@ class OptimizerSuite extends FunSpec {
 
   describe("minQuadraticForm") {
     val tol = 1E-4 // tolerance for norm(x* - xOpt)
-    val opt = new Optimizer(maxSteps=1000, tol=tol)
+    val opt = new GradientOptimizer(maxSteps=1000, tol=tol)
 
     describe("When applied to A=[1 0; 0 1], b=[-2 -3]") {
       val A = DenseMatrix((1D, 0D), (0D, 1D))
