@@ -29,11 +29,74 @@ private[gradopt] class FunctionWithCounter[-T,+U](f: T => U) extends Function[T,
 }
 
 class Optimizer(
-    var maxSteps: Int = 25000,
+    var maxSteps: Int = 50000,
     var tol: Double = 1E-6) {
   import com.feynmanliang.gradopt.GradientAlgorithm._
   import com.feynmanliang.gradopt.LineSearchConfig._
 
+  /** Minimizes a quadratic form 0.5 x'Ax - b'x using exact step size */
+  // TODO: refactor into Optimizer framework
+  def minQuadraticForm(
+      A: Matrix[Double],
+      b: Vector[Double],
+      x0: Vector[Double],
+      gradientAlgorithm: GradientAlgorithm.GradientAlgorithm,
+      lineSearchConfig: LineSearchConfig.LineSearchConfig,
+      reportPerf: Boolean): (Option[Vector[Double]], Option[PerfDiagnostics]) = {
+    val fCnt = new FunctionWithCounter[Vector[Double], Double](x => 0.5D * (x.t * (A * x)) - b.t * x)
+    val dfCnt = new FunctionWithCounter[Vector[Double], Vector[Double]](x => A * x - b)
+    val stepSize: (Vector[Double], Vector[Double]) => Option[Double] = (x, p) => {
+      if (norm(p.toDenseVector) == 0D) Some(0D) // degenerate ray
+      else {
+        val num = -(dfCnt(x).t * p)
+        val denom = (p.t * (A * p)) // assumes A is PSD
+        denom match {
+          case 0 => None
+          case _ => Some(num / denom)
+        }
+      }
+    }
+
+    /** Steepest Descent */
+    def steepestDescent(
+      f: Vector[Double] => Double,
+      df: Vector[Double] => Vector[Double],
+      x0: Vector[Double]): Stream[(Vector[Double], Double)] = {
+      /** Computes a Stream of x values along steepest descent direction */
+      def improve(x: Vector[Double]): Stream[(Vector[Double], Double)] = {
+        val grad = df(x)
+        val p = -grad // steepest descent direction
+        stepSize(x, p) match {
+          case Some(alpha) => {
+            val xnew = x + alpha * p
+            (x, norm(grad.toDenseVector)) #:: improve(xnew)
+          }
+          case None => (x, norm(grad.toDenseVector)) #:: Stream.Empty
+        }
+      }
+      improve(x0)
+    }
+    val xValues = (gradientAlgorithm match {
+        case SteepestDescent => steepestDescent(fCnt, dfCnt, x0)
+        case ConjugateGradient => ???
+      }).take(maxSteps).iterator
+
+
+    if (reportPerf) {
+      val xValuesSeq = xValues.toSeq
+      val res = xValuesSeq.find(_._2 < tol)
+      val trace = res  match {
+        case Some(xStar) => xValuesSeq.takeWhile(_._2 >= tol) :+ xStar
+        case None => xValuesSeq.takeWhile(_._2 >= tol)
+      }
+      val perf = PerfDiagnostics(trace, fCnt.numCalls, dfCnt.numCalls)
+      (res.map(_._1), Some(perf))
+    } else {
+      val res = xValues.find(_._2 < tol).map(_._1)
+      (res, None)
+    }
+
+  }
 
   // Overload which vectorizes scalar-valued functions.
   def minimize(
@@ -93,9 +156,10 @@ class Optimizer(
 
   /** Steepest Descent */
   private def steepestDescent(
-    f: Vector[Double] => Double,
-    df: Vector[Double] => Vector[Double],
-    x0: Vector[Double]): Stream[(Vector[Double], Double)] = {
+      f: Vector[Double] => Double,
+      df: Vector[Double] => Vector[Double],
+      x0: Vector[Double]): Stream[(Vector[Double], Double)] = {
+    /** Computes a Stream of x values along steepest descent direction */
     def improve(x: Vector[Double]): Stream[(Vector[Double], Double)] = {
       val grad = df(x)
       val p = -grad // steepest descent direction
@@ -179,10 +243,21 @@ object Optimizer {
   }
 
   def q3(showPlot: Boolean = false): Unit = {
-    val A: DenseMatrix[Double] = csvread(new File(getClass.getResource("/A10.csv").getFile()))
-    assert(A.rows == A.cols, "A must be symmetric")
-    val n: Int = A.rows
-    val b: DenseVector[Double] = 2D * (DenseVector.rand(n) - DenseVector.fill(n){0.5})
+    val opt = new Optimizer(maxSteps=100, tol=1E-4)
+    for {
+      fname <- List("A10.csv", "A100.csv", "A1000.csv", "B10.csv", "B100.csv", "B1000.csv")
+    } {
+      val A: DenseMatrix[Double] = csvread(new File(getClass.getResource("/" + fname).getFile()))
+      assert(A.rows == A.cols, "A must be symmetric")
+      val n: Int = A.rows
+      val b: DenseVector[Double] = 2D * (DenseVector.rand(n) - DenseVector.fill(n){0.5})
+
+      println(s"$fname")
+      opt.minQuadraticForm(A, b, DenseVector.zeros(n), SteepestDescent, Exact, true) match {
+        case (res, Some(perf)) =>
+          println(s"$res, ${perf.xTrace.takeRight(2)}, ${perf.xTrace.length}, ${perf.numEvalF}, ${perf.numEvalDf}")
+      }
+    }
   }
 
   def main(args: Array[String]) = {
