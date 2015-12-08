@@ -12,8 +12,7 @@ class OptimizerSuite extends FunSpec {
   describe("FunctionWithCounter") {
     it("correctly counts the number of times a function is called") {
       for (n <- 10 to 1000 by 100) {
-        val opt = new Optimizer()
-        val cntFn = new opt.FunctionWithCounter((x: Double) => x * x)
+        val cntFn = new FunctionWithCounter((x: Double) => x * x)
         for (i <- 0 until n) {
           cntFn(i)
         }

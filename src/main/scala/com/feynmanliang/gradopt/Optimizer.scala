@@ -18,16 +18,19 @@ private[gradopt] case class PerfDiagnostics(
   numEvalF: Long,
   numEvalDf: Long)
 
+// TODO: these should be path-dependent to restrict to optimizer instance
+private[gradopt] class FunctionWithCounter[-T,+U](f: T => U) extends Function[T,U] {
+  var numCalls: Int = 0
+  override def apply(t: T): U = {
+    numCalls += 1
+    f(t)
+  }
+}
+
+
 class Optimizer(
   var maxStepIters: Int = 5000,
   var tol: Double = 1E-8) {
-  private[gradopt] class FunctionWithCounter[-T,+U](f: T => U) extends Function[T,U] {
-    var numCalls: Int = 0
-    override def apply(t: T): U = {
-      numCalls += 1
-      f(t)
-    }
-  }
 
   // Overload to permit scalar valued functions
   def minimize(
@@ -59,7 +62,6 @@ class Optimizer(
     val fCnt = new FunctionWithCounter(f)
     val dfCnt = new FunctionWithCounter(df)
 
-    // Stream of x values returned by bracket/line search algorithm
     def improve(x: Vector[Double]): Stream[Vector[Double]] = {
       LineSearch.chooseStepSize(fCnt, -dfCnt(x), dfCnt, x) match {
         case Some(alpha) => {
