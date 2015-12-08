@@ -19,10 +19,8 @@ private[gradopt] case class PerfDiagnostics(
   numEvalDf: Long)
 
 class Optimizer(
-  var maxBracketIters: Int = 5000,
   var maxStepIters: Int = 5000,
-  var tol: Double = 1E-8
-) {
+  var tol: Double = 1E-8) {
   private[gradopt] class FunctionWithCounter[-T,+U](f: T => U) extends Function[T,U] {
     var numCalls: Int = 0
     override def apply(t: T): U = {
@@ -63,9 +61,9 @@ class Optimizer(
 
     // Stream of x values returned by bracket/line search algorithm
     def improve(x: Vector[Double]): Stream[Vector[Double]] = {
-      bracket(fCnt, dfCnt, x) match {
-        case Some(bracket) => {
-          val xnew = x - lineSearch(fCnt, dfCnt, x, bracket) * dfCnt(x)
+      LineSearch.chooseStepSize(fCnt, -dfCnt(x), dfCnt, x) match {
+        case Some(alpha) => {
+          val xnew = x - alpha * dfCnt(x)
           x #:: improve(xnew)
         }
         case None => x #:: Stream.Empty
@@ -86,132 +84,6 @@ class Optimizer(
       val res = xValues.find((x:Vector[Double]) => norm(df(x).toDenseVector) < tol)
       (res, None)
     }
-  }
-
-  /**
-  * Brackets the minimum of a function `f`. This function uses `x0` as the
-  * midpoint and `df` as the line around which to find bracket bounds.
-  * TODO: better initialization
-  * TODO: update the midpoint to be something besides 0
-  */
-  private[gradopt] def bracket(
-      f: Vector[Double] => Double,
-      df: Vector[Double] => Vector[Double],
-      x0: Vector[Double]): Option[BracketInterval] = {
-    val fx0 = f(x0)
-    val dfx0 = df(x0)
-    if (norm(dfx0.toDenseVector) < tol) return Some(BracketInterval(-1E-6, 0D, 1E-2))
-
-    def nextBracket(currBracket: BracketInterval): Stream[BracketInterval] = currBracket match {
-      case BracketInterval(lb, mid, ub) => {
-        val fMid = fx0 // TODO: adapt midpoint
-        val flb = f(x0 - lb * dfx0)
-        val fub = f(x0 - ub * dfx0)
-        val newLb = if (fMid < flb) lb else lb - (mid - lb)
-        val newUb = if (fMid < fub) ub else ub + (ub - mid)
-        currBracket #:: nextBracket(BracketInterval(newLb, mid, newUb))
-      }
-    }
-
-    val initBracket = BracketInterval(-0.1D, 0D, 0.1D)
-    nextBracket(initBracket)
-      .take(maxBracketIters)
-      .find(_ match {
-        case BracketInterval(lb, mid, ub) => {
-          val fMid = fx0 // TODO: adapt midpoint
-          f(x0 - lb * dfx0) > fMid && f(x0 - ub * dfx0) > fMid
-        }
-      })
-  }
-
-  /**
-  * Performs a line search for x' = x + a*p within a bracketing interval to determine step size.
-  * Returns the value x' which minimizes `f` along the line search. The chosen step size
-  * satisfies the Strong Wolfe Conditions.
-  * TODO: localize all bracketing into linesearch
-  */
-  def lineSearch(
-      f: Vector[Double] => Double,
-      df: Vector[Double] => Vector[Double],
-      x: Vector[Double],
-      bracket: BracketInterval): Double = lineSearch(f, -df(x), df, x)
-
-  def lineSearch(
-      f: Vector[Double] => Double,
-      p: Vector[Double],
-      df: Vector[Double] => Vector[Double],
-      x: Vector[Double]): Double = {
-    val c1: Double = 1E-4
-    val c2: Double = 0.9
-
-    val bracket = this.bracket(f, df, x).get // TODO: terminate search if fail
-    val aMax: Double = 2 // max step length // TODO: why does this fail when set to bracket.ub
-
-    val phi: Double => Double = alpha => f(x + alpha * p)
-    val dPhi: Double => Double = alpha => df(x + alpha * p) dot (p)
-
-
-    val phiZero = phi(0)
-    val dPhiZero = dPhi(0)
-
-    /**
-    * Nocedal Algorithm 3.5, finds a step length \alpha while ensures that
-    * (aPrev, aCurr) contains a point satisfying the Strong Wolfe Conditions at
-    * each iteration.
-    */
-    def chooseAlpha(aPrev: Double, aCurr: Double, firstIter: Boolean): Double = {
-      val phiPrev = phi(aPrev)
-      val phiCurr = phi(aCurr)
-
-      if (phiCurr > phiZero + c1*aCurr*dPhiZero || (phiCurr >= phiPrev && !firstIter)) {
-        zoom(aPrev, aCurr)
-      } else {
-        val dPhiCurr = dPhi(aCurr)
-        if (math.abs(dPhiCurr) <= -1*c2 * dPhiZero) {
-          aCurr
-        }
-        else if (dPhiCurr >= 0) {
-          zoom(aCurr, aPrev)
-        } else {
-          chooseAlpha(aCurr, (aCurr + aMax) / 2D, false)
-        }
-      }
-    }
-
-    /**
-    * Nocedal Algorithm 3.6, generates \alpha_j between \alpha_{lo} and \alpha_{hi} and replaces
-    * one of the two endpoints while ensuring Wolfe conditions hold.
-    */
-    def zoom(alo: Double, ahi: Double): Double = {
-      //println(s"zoom: $alo, $ahi")
-      assert(!alo.isNaN && !ahi.isNaN)
-      val aCurr = interpolate(alo, ahi)
-      //println(s"zoom: $aCurr")
-      if (phi(aCurr) > phiZero + c1 * aCurr * dPhiZero || phi(aCurr) >= phi(alo)) {
-        zoom(alo, aCurr)
-      } else {
-        val dPhiCurr = dPhi(aCurr)
-        if (math.abs(dPhiCurr) <= -c2 * dPhiZero) {
-          aCurr
-        } else if (dPhiCurr * (ahi - alo) >= 0) {
-          zoom(aCurr, alo)
-        } else {
-          zoom(aCurr, ahi)
-        }
-      }
-    }
-
-    /**
-    * Finds the minimizer of the Cubic interpolation of the line search
-    * objective \phi(\alpha) between [alpha_{i-1}, alpha_i]. See Nocedal (3.59).
-    **/
-    def interpolate(prev: Double, curr: Double): Double = {
-      val d1 = dPhi(prev) + dPhi(curr) - 3D * (phi(prev) - phi(curr)) / (prev - curr)
-      val d2 = signum(curr - prev) * sqrt(pow(d1,2) - dPhi(prev) * dPhi(curr))
-      curr - (curr - prev) * (dPhi(curr) + d2 - d1) / (dPhi(curr) - dPhi(prev) + 2D*d2)
-    }
-
-    chooseAlpha(0, aMax / 2D, true)
   }
 }
 

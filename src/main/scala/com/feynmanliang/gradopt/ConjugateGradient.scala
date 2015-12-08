@@ -9,7 +9,10 @@ import breeze.numerics._
 class ConjugateGradient() {
   val opt = new Optimizer() // TODO: subclass or share lineSearch
 
-  /** Nocedal Algorithm 5.2 */
+  /**
+  * Nocedal Algorithm 5.2
+  * TODO: save the trace
+  **/
   def minimize(
       f: Vector[Double] => Double,
       df: Vector[Double] => Vector[Double],
@@ -19,8 +22,7 @@ class ConjugateGradient() {
     var grad = df(x)
     var p = -grad
     while (norm(grad.toDenseVector) > 1E-6) {
-      println(norm(df(x).toDenseVector))
-      val alpha = opt.lineSearch(f, p, df, x)
+      val alpha = LineSearch.chooseStepSize(f, p, df, x).get // TODO: refactor algo into stream
       x = x + alpha * p
       val newGrad = df(x)
       val beta = (newGrad dot newGrad) / (grad dot grad)

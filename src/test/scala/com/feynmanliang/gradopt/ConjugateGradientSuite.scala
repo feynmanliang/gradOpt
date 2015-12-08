@@ -19,8 +19,6 @@ class ConjugateGradientSuite extends FunSpec {
           200D * (-pow(v(0), 2) + v(1))
         )
       }
-
-      println(cg.minimize(f, df, DenseVector(1,2), true))
     }
   }
 }
