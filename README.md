@@ -69,9 +69,9 @@ Additionally, we support the following gradient-free methods:
 WishList
 -------
 
-[ ] Second order methods (Newtons, LBFGS, etc)
-[ ] More conjugate gradient formulas
-[ ] More line search interpolation methods
-[ ] Conjugate-gradient preconditioning
-[ ] Better reporting of optimization performance stats
+ - [ ] Second order methods (Newtons, LBFGS, etc)
+ - [ ] More conjugate gradient formulas
+ - [ ] More line search interpolation methods
+ - [ ] Conjugate-gradient preconditioning
+ - [ ] Better reporting of optimization performance stats
 
