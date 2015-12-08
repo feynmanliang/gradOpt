@@ -1,5 +1,7 @@
 package com.feynmanliang.gradopt
 
+import java.io.File
+
 import breeze.linalg._
 import breeze.numerics._
 import breeze.plot._
@@ -153,7 +155,6 @@ object Optimizer {
   import com.feynmanliang.gradopt.GradientAlgorithm._
   import com.feynmanliang.gradopt.LineSearchConfig._
 
-  // TODO: move this client code out to separate file
   def q2(showPlot: Boolean = false): Unit = {
     val f = (x: Double) => pow(x,4) * cos(pow(x,-1)) + 2D * pow(x,4)
     val df = (x: Double) => 8D * pow(x,3) + 4D * pow(x, 3) * cos(pow(x,-1)) - pow(x, 4) * sin(pow(x,-1))
@@ -176,7 +177,14 @@ object Optimizer {
       }
     }
   }
-  def q3(showPlot: Boolean = false): Unit = ???
+
+  def q3(showPlot: Boolean = false): Unit = {
+    val A: DenseMatrix[Double] = csvread(new File(getClass.getResource("/A10.csv").getFile()))
+    assert(A.rows == A.cols, "A must be symmetric")
+    val n: Int = A.rows
+    val b: DenseVector[Double] = 2D * (DenseVector.rand(n) - DenseVector.fill(n){0.5})
+  }
+
   def main(args: Array[String]) = {
     // q2(showPlot = false)
     q3(showPlot = false)
