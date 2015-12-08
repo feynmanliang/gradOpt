@@ -45,17 +45,6 @@ class Optimizer(
       reportPerf: Boolean): (Option[Vector[Double]], Option[PerfDiagnostics]) = {
     val fCnt = new FunctionWithCounter[Vector[Double], Double](x => 0.5D * (x.t * (A * x)) - b.t * x)
     val dfCnt = new FunctionWithCounter[Vector[Double], Vector[Double]](x => A * x - b)
-    val stepSize: (Vector[Double], Vector[Double]) => Option[Double] = (x, p) => {
-      if (norm(p.toDenseVector) == 0D) Some(0D) // degenerate ray
-      else {
-        val num = -(dfCnt(x).t * p)
-        val denom = (p.t * (A * p)) // assumes A is PSD
-        denom match {
-          case 0 => None
-          case _ => Some(num / denom)
-        }
-      }
-    }
 
     /** Steepest Descent */
     def steepestDescent(
@@ -66,10 +55,10 @@ class Optimizer(
       def improve(x: Vector[Double]): Stream[(Vector[Double], Double)] = {
         val grad = df(x)
         val p = -grad // steepest descent direction
-        stepSize(x, p) match {
+        LineSearch.exactLineSearch(A, grad, x, p) match {
           case Some(alpha) => {
-            val xnew = x + alpha * p
-            (x, norm(grad.toDenseVector)) #:: improve(xnew)
+            val xNew = x + alpha * p
+            (x, norm(grad.toDenseVector)) #:: improve(xNew)
           }
           case None => (x, norm(grad.toDenseVector)) #:: Stream.Empty
         }
@@ -85,7 +74,7 @@ class Optimizer(
     if (reportPerf) {
       val xValuesSeq = xValues.toSeq
       val res = xValuesSeq.find(_._2 < tol)
-      val trace = res  match {
+      val trace = res match {
         case Some(xStar) => xValuesSeq.takeWhile(_._2 >= tol) :+ xStar
         case None => xValuesSeq.takeWhile(_._2 >= tol)
       }
@@ -243,19 +232,20 @@ object Optimizer {
   }
 
   def q3(showPlot: Boolean = false): Unit = {
-    val opt = new Optimizer(maxSteps=100, tol=1E-4)
+    val opt = new Optimizer(maxSteps=101, tol=1E-4)
     for {
       fname <- List("A10.csv", "A100.csv", "A1000.csv", "B10.csv", "B100.csv", "B1000.csv")
     } {
       val A: DenseMatrix[Double] = csvread(new File(getClass.getResource("/" + fname).getFile()))
       assert(A.rows == A.cols, "A must be symmetric")
-      val n: Int = A.rows
+      val n: Int = A.cols
       val b: DenseVector[Double] = 2D * (DenseVector.rand(n) - DenseVector.fill(n){0.5})
 
       println(s"$fname")
       opt.minQuadraticForm(A, b, DenseVector.zeros(n), SteepestDescent, Exact, true) match {
         case (res, Some(perf)) =>
           println(s"$res, ${perf.xTrace.takeRight(2)}, ${perf.xTrace.length}, ${perf.numEvalF}, ${perf.numEvalDf}")
+        case _ => throw new Exception("Minimize failed to return perf diagnostics")
       }
     }
   }

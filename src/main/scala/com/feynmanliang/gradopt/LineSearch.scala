@@ -144,11 +144,18 @@ object LineSearch {
   */
   def exactLineSearch(
       A: Matrix[Double],
-      b: Vector[Double],
-      p: Vector[Double],
-      x: Vector[Double]): Double = {
-    val grad = A*x - b
-    -(grad.t * p) / (p.t * (A * p))
+      df: Vector[Double],
+      x: Vector[Double],
+      p: Vector[Double]): Option[Double] = {
+    if (norm(p.toDenseVector) == 0D) Some(0D) // degenerate ray
+    else {
+      val num = -(df.t * p)
+      val denom = (p.t * (A * p)) // assumes A is PSD
+      denom match {
+        case 0 => None
+        case _ => Some(num / denom)
+      }
+    }
   }
 }
 

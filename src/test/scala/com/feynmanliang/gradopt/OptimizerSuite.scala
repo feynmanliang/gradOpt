@@ -24,8 +24,7 @@ class OptimizerSuite extends FunSpec {
     }
   }
 
-  describe("Minimize") {
-
+  describe("minimize") {
     for {
       gradientAlgorithm <- List(SteepestDescent, ConjugateGradient)
     } describe (s"using $gradientAlgorithm") {
@@ -91,6 +90,38 @@ class OptimizerSuite extends FunSpec {
             case _ => fail("Minimize failed to return answer or perf diagnostics")
           }
         }
+      }
+    }
+  }
+
+  describe("minQuadraticForm") {
+    val opt = new Optimizer(maxSteps=101, tol=1E-4)
+
+    describe("When applied to A=[1 0; 0 1], b=[-2 -3]") {
+      val A = DenseMatrix((1D, 0D), (0D, 1D))
+      val b = DenseVector(-2D, -3D)
+      val x = DenseVector(2D, 4D)
+      val xOpt = b
+
+      opt.minQuadraticForm(A, b, DenseVector.zeros(A.cols), SteepestDescent, Exact, true) match {
+        case (Some(xStar), Some(perf)) => {
+          val numIters = perf.xTrace.size
+          it("should have at least one iteration") {
+            assert(numIters >= 1)
+          }
+          it(s"should have evaluated f >= $numIters times") {
+            assert(perf.numEvalF > numIters)
+          }
+          it(s"should have evaluated df >= $numIters times") {
+            assert(perf.numEvalDf > numIters)
+          }
+          it(s"should be within $tol to $xOpt") {
+            println(perf.xTrace.toList)
+            println(xStar)
+            assert(norm((xStar - xOpt).toDenseVector) < tol)
+          }
+        }
+        case _ => fail("Minimize failed to return answer or perf diagnostics")
       }
     }
   }

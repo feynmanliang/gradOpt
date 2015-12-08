@@ -70,8 +70,9 @@ class LineSearchSuite extends FunSpec {
       val b = DenseVector(-2D, -3D)
       val x = DenseVector(2D, 4D)
       it("should converge in a single step") {
-        val p = -(A*x - b) // steepest descent direction
-        val xNew = x + LineSearch.exactLineSearch(A, b, p, x) * p
+        val grad = (A*x - b) // steepest descent direction
+        val p = -grad
+        val xNew = x + LineSearch.exactLineSearch(A, grad, x, p).get * p
         assert(norm(A*xNew - b) <= 1E-6)
       }
     }
