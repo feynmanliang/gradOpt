@@ -45,9 +45,18 @@ println(result)
 Installation
 -----------
 
-In your project's `build.sbt`, add
+In your project's `build.sbt`
+
+1. Add Sonatype OSS Snapshots resolver
 ```sbt
-TODO: sync with Sonatype and add howto
+resolvers +=
+"Sonatype OSS Snapshots" at
+"https://oss.sonatype.org/content/repositories/snapshots"
+```
+
+2. Add the dependency
+```sbt
+libraryDependencies += "com.feynmanliang.optala" % "optala_2.11" % "0.1.0-SNAPSHOT"
 ```
 
 Description
