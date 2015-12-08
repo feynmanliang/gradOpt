@@ -35,7 +35,7 @@ class NelderMeadOptimizer(
       n: Int,
       reportPerf: Boolean): (Option[Vector[Double]], Option[PerfDiagnostics[Simplex]]) = {
     val init = Simplex(Seq.fill(n) {
-      val x = 2D * (DenseVector.rand(n) - DenseVector.fill(n){0.5})
+      val x = 2D * (DenseVector.rand(d) - DenseVector.fill(d){0.5})
       (x, f(x))
     })
     minimize(f, init, reportPerf)

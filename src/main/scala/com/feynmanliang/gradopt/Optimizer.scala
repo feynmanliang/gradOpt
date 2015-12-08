@@ -72,6 +72,17 @@ object Optimizer {
         case _ => println(s"No results for x0=$x0!!!")
       }
     }
+
+    val nmOpt = new NelderMeadOptimizer(maxSteps=5000, tol=1E-10)
+    // Set random seed
+    println(s"Optimizing Rosenbrock function using Nedler-Mead")
+    nmOpt.minimize(f, 2, 8, true) match {
+      case (_, Some(perf)) =>
+      val (sstar, fstar) = perf.xTrace.last
+      val xstar = sstar.points.map(_._1).reduce(_+_)/ (1D*sstar.points.size)
+      println(f"x0=$x0, xstar=$xstar, fstar=$fstar, numEvalF=${perf.numEvalF}, numEvalDf=${perf.numEvalDf}")
+      case _ => println(s"No results for x0=$x0!!!")
+    }
   }
 
   def q5(showPlot: Boolean = false): Unit = {
