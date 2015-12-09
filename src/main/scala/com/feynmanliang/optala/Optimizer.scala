@@ -45,7 +45,7 @@ object Optimizer {
       optala.minimize(f, df, x0, SteepestDescent, CubicInterpolation, true) match {
         case (_, Some(perf)) =>
           val (xstar, fstar) = perf.xTrace.last
-          println(s"x0:$x0,xstar:$xstar,fstar:$xstar,normGrad:${perf.xTrace.last._2},numSteps:${perf.xTrace.length},fEval:${perf.numEvalF},dfEval:${perf.numEvalDf}")
+          println(s"x0:$x0,xstar:$xstar,fstar:$fstar,normGrad:${perf.xTrace.last._2},numSteps:${perf.xTrace.length},fEval:${perf.numEvalF},dfEval:${perf.numEvalDf}")
         case _ => println(s"No results for x0=$x0!!!")
       }
     }
@@ -68,19 +68,18 @@ object Optimizer {
       optala.minimize(f, df, x0, algo, CubicInterpolation, true) match {
         case (_, Some(perf)) =>
           val (xstar, fstar) = perf.xTrace.last
-          println(s"x0:$x0,xstar:$xstar,fstar:$xstar,normGrad:${perf.xTrace.last._2},numSteps:${perf.xTrace.length},fEval:${perf.numEvalF},dfEval:${perf.numEvalDf}")
+          println(s"x0:$x0,xstar:$xstar,fstar:$fstar,normGrad:${perf.xTrace.last._2},numSteps:${perf.xTrace.length},fEval:${perf.numEvalF},dfEval:${perf.numEvalDf}")
         case _ => println(s"No results for x0=$x0!!!")
       }
     }
 
     val nmOpt = new NelderMeadOptimizer(maxSteps=5000, tol=1E-10)
-    // Set random seed
     println(s"Optimizing Rosenbrock function using Nedler-Mead")
     nmOpt.minimize(f, 2, 8, true) match {
       case (_, Some(perf)) =>
         val (sstar, fstar) = perf.xTrace.last
         val xstar = sstar.points.map(_._1).reduce(_+_)/ (1D*sstar.points.size)
-        println(s"x0:$x0,xstar:$xstar,fstar:$xstar,normGrad:${perf.xTrace.last._2},numSteps:${perf.xTrace.length},fEval:${perf.numEvalF},dfEval:${perf.numEvalDf}")
+        println(s"x0:$x0,xstar:$xstar,fstar:$fstar,normGrad:${perf.xTrace.last._2},numSteps:${perf.xTrace.length},fEval:${perf.numEvalF},dfEval:${perf.numEvalDf}")
       case _ => println(s"No results for x0=$x0!!!")
     }
   }
@@ -106,12 +105,46 @@ object Optimizer {
     }
   }
 
+  def nmVsGa(): Unit = {
+    val f: Vector[Double] => Double = v => {
+      val x = v(0)
+      val y = v(1)
+      (4D - 2.1D*pow(x,2) + (1D/3D)*pow(x,4))*pow(x,2) + x*y + (4D*pow(y,2) - 4D)*pow(y,2)
+    }
+    val lb = DenseVector(-2D, -1D)
+    val ub = DenseVector(2D, 1D)
 
+
+    println(s"Optimizing 6HCF using Nedler-Mead")
+    val nmOpt = new NelderMeadOptimizer(maxSteps=1000, tol=1E-10)
+    val x0 = DenseVector(-1D, -1D)
+    nmOpt.minimize(f, 2, 8, true) match {
+      case (_, Some(perf)) =>
+        val (sstar, fstar) = perf.xTrace.last
+        val xstar = sstar.points.map(_._1).reduce(_+_)/ (1D*sstar.points.size)
+        println(s"x0:$x0,xstar:$xstar,fstar:$fstar,normGrad:${perf.xTrace.last._2},numSteps:${perf.xTrace.length},fEval:${perf.numEvalF},dfEval:${perf.numEvalDf}")
+      case _ => println(s"No results for x0=$x0!!!")
+    }
+
+    println(s"Optimizing 6HCF using GA")
+    val ga = new GeneticAlgorithm(maxSteps=1000)
+    val popSize = 20
+    val eliteCount = 2
+    val xoverFrac = 0.8
+    val seed = 42
+    ga.minimize(f, lb, ub, popSize, eliteCount, xoverFrac, Some(seed)) match {
+      case (_, Some(perf)) =>
+        val (xstar, fstar) = perf.xTrace.last._1.population.minBy(_._2)
+        println(s"popSize:$popSize,xstar:$xstar,fstar:$fstar,numSteps:${perf.xTrace.length},fEval:${perf.numEvalF},dfEval:${perf.numEvalDf}")
+      case _ => println(s"No results for x0=$x0!!!")
+    }
+  }
 
   def main(args: Array[String]) = {
     //q2(showPlot = false)
     //q4(showPlot = false)
-    q56(showPlot = false)
+    //q56(showPlot = false)
+    nmVsGa()
   }
 }
 

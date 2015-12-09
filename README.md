@@ -74,6 +74,7 @@ To perform line search  and choose step size, we currently support:
 
 Additionally, we support the following gradient-free methods:
 * Nelder-Mead
+* Genetic Algorithm
 
 WishList
 -------
