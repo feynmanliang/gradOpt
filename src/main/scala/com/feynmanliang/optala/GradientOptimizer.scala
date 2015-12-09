@@ -44,7 +44,7 @@ class GradientOptimizer(
         case Some(xStar) => xValuesSeq.takeWhile(_._2 >= tol) :+ xStar
         case None => xValuesSeq.takeWhile(_._2 >= tol)
       }
-      val perf = PerfDiagnostics(trace, fCnt.numCalls, dfCnt.numCalls)
+      val perf = PerfDiagnostics(trace.toList, fCnt.numCalls, dfCnt.numCalls)
       (res.map(_._1), Some(perf))
     } else {
       val res = xValues.find(_._2 < tol).map(_._1)
@@ -104,7 +104,7 @@ class GradientOptimizer(
         case Some(xStar) => xValuesSeq.takeWhile(_._2 >= tol) :+ xStar
         case None => xValuesSeq.takeWhile(_._2 >= tol)
       }
-      val perf = PerfDiagnostics(trace, fCnt.numCalls, dfCnt.numCalls)
+      val perf = PerfDiagnostics(trace.toList, fCnt.numCalls, dfCnt.numCalls)
       (res.map(_._1), Some(perf))
     } else {
       val res = xValues.find(_._2 < tol).map(_._1)

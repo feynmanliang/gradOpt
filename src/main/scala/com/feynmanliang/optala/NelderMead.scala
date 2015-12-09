@@ -70,9 +70,8 @@ class NelderMeadOptimizer(
           .sliding(2)
           .takeWhile(x => norm(x(1)._2 - x(0)._2) >= tol)
           .map(_(0))
-          .toSeq
       }
-      val perf = PerfDiagnostics(trace, fCnt.numCalls, 0)
+      val perf = PerfDiagnostics(trace.toList, fCnt.numCalls, 0)
       (res.map(s => s._1.points.map(_._1).reduce(_+_) / (1D * s._1.points.size)), Some(perf))
     } else {
       val res = xValues.sliding(2).find(x => norm(x(1)._2 - x(0)._2) < tol).map(_(1))

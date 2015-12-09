@@ -35,21 +35,21 @@ class GeneticAlgorithm(var maxSteps: Int = 1000) {
 
     val xoverCount: Int = ((popSize - eliteCount) * xoverFrac).round.toInt
     val mutantCount: Int = popSize - eliteCount - xoverCount
-    val initGen = initialize(f, lb, ub, popSize)
+    val initGen = initialize(fCnt, lb, ub, popSize)
 
     val successors: Stream[Generation] = Stream.iterate(initGen) { gen =>
       val parents = selectParents(gen.population, min(2*xoverCount, mutantCount))
 
       val elites = gen.population.sortBy(_._2).take(eliteCount)
-      val xovers = crossOver(f, parents)
-      val mutants = mutate(f, lb, ub, parents, mutantCount)
+      val xovers = crossOver(fCnt, parents)
+      val mutants = mutate(fCnt, lb, ub, parents, mutantCount)
 
       Generation(elites ++ xovers ++ mutants)
     }
 
     val iters = successors.take(maxSteps)
     val perf = PerfDiagnostics(
-      iters.map(g => (g, g.meanNegFitness())),
+      iters.map(g => (g, g.meanNegFitness())).toList,
       fCnt.numCalls,
       0
     )

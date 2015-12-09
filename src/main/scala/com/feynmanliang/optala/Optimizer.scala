@@ -8,8 +8,8 @@ import breeze.plot._
 
 // Performance diagnostics for the optimizer
 private[optala] case class PerfDiagnostics[T](
-  xTrace: Seq[(T, Double)],
-  numEvalF: Long,
+  xTrace: List[(T, Double)],
+  numEvalF: Long, // make sure the Seq is evaluated before materializing
   numEvalDf: Long)
 
 private[optala] class FunctionWithCounter[-T,+U](f: T => U) extends Function[T,U] {
@@ -141,9 +141,9 @@ object Optimizer {
   }
 
   def main(args: Array[String]) = {
-    //q2(showPlot = false)
-    //q4(showPlot = false)
-    //q56(showPlot = false)
+    q2(showPlot = false)
+    q4(showPlot = false)
+    q56(showPlot = false)
     nmVsGa()
   }
 }
