@@ -5,7 +5,6 @@ import breeze.numerics._
 
 import org.scalatest._
 
-
 class LineSearchSuite extends FunSpec {
   describe("Bracketing") {
     describe("when applied to f(x)=x^2") {
