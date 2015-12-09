@@ -26,7 +26,6 @@ class GeneticAlgorithmSuite extends FunSpec {
     describe("initialize") {
       val init = ga.initialize(f, lb, ub, popSize)
 
-      println(init)
       it("initializes the correct population size") {
         assert(init.population.size === popSize)
       }
@@ -35,9 +34,56 @@ class GeneticAlgorithmSuite extends FunSpec {
       }
     }
 
+    describe("selectParents") {
+      val init = ga.initialize(f, lb, ub, popSize)
+
+      it("selects the number of specified parents") {
+        assert(ga.selectParents(init.population, 10).size === 10)
+      }
+      it("samples with replacement") {
+        val parents = ga.selectParents(init.population, popSize*2)
+        assert(parents.toSet.size <= (parents.size + 1) / 2)
+      }
+    }
+
+    describe("crossover") {
+      val init = ga.initialize(f, lb, ub, popSize)
+
+      it("halves the number of parents") {
+        assert(ga.crossOver(f, init.population).size === init.population.size / 2)
+      }
+      it("creates distinct children") {
+        assert((ga.crossOver(f, init.population) ++ init.population).toSet.size >= (init.population.size * 1.5D - 1).toInt)
+      }
+    }
+
+    describe("mutate") {
+      val init = ga.initialize(f, lb, ub, popSize)
+
+      val mutants = ga.mutate(f, lb, ub, init.population, 5)
+      it("only keeps mutantCount elements") {
+        assert(mutants.size == 5)
+      }
+      it("creates distinct children") {
+        assert(mutants.toSet.size === mutants.size)
+      }
+      it("stays within bounds") {
+        assert(mutants.map(_._1).forall(x => ((lb :<= x) :& (x :<= ub)).all))
+      }
+    }
+
     describe("when run on six-hump camelback function (6HCF)") {
-      it("runs") {
-        println(ga.minimize(f, lb, ub, popSize=popSize, eliteCount=2, xoverFrac=0.8, seed=Some(seed)))
+      ga.minimize(f, lb, ub, popSize=popSize, eliteCount=2, xoverFrac=0.8, seed=Some(seed)) match {
+        case (_, Some(perf)) => {
+          it("monotonically decreases the best point's objective") {
+            assert(perf.xTrace.map(_._1).map(_.bestIndividual()._2).sliding(2).forall(x => x(0) >= x(1)))
+          }
+          it("decreases average objective value over all population") {
+            val avgObjTrace = perf.xTrace.map(_._2)
+            assert(avgObjTrace.take(10).sum >= avgObjTrace.takeRight(10).sum)
+          }
+        }
+        case _ => fail("error")
       }
     }
   }
