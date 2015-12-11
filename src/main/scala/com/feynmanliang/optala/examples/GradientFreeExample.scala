@@ -38,8 +38,8 @@ object GradientFreeExample {
         val xStar = sStar.points.minBy(_._2)._1
         val fStar = f(xStar)
 
-        // rows = (x1,y1,x2,y2,...), columns = iterations
-        val stateTrace = DenseMatrix.horzcat(perf.stateTrace.map { simplex =>
+        // columns = (x1,y1,x2,y2,...), rows = iterations
+        val stateTrace = DenseMatrix.vertcat(perf.stateTrace.map { simplex =>
           DenseMatrix(simplex.points.map(_._1.toArray).flatten)
         }: _*)
         val stateTraceFile = new File("results/nm-stateTrace.csv")
@@ -70,8 +70,8 @@ object GradientFreeExample {
         val xstar = perf.stateTrace.last.population.minBy(_._2)._1
         val fstar = f(xstar)
 
-        // rows = (x1,y1,x2,y2,...), columns = iterations
-        val stateTrace = DenseMatrix.horzcat(perf.stateTrace.map { gen =>
+        // columns = (x1,y1,x2,y2,...), rows = iterations
+        val stateTrace = DenseMatrix.vertcat(perf.stateTrace.map { gen =>
           DenseMatrix(gen.population.map(_._1.toArray).flatten)
         }: _*)
         val stateTraceFile = new File("results/ga-stateTrace.csv")

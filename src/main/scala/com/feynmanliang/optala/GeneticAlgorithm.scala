@@ -36,7 +36,7 @@ class GeneticAlgorithm(var maxSteps: Int = 1000) {
     val initGen = initialize(fCnt, lb, ub, popSize)
 
     val successors: Stream[Generation] = Stream.iterate(initGen) { gen =>
-      val parents = selectParents(gen.population, min(2*xoverCount, mutantCount))
+      val parents = selectParents(gen.population, max(2*xoverCount, mutantCount))
 
       val elites = gen.population.sortBy(_._2).take(eliteCount)
       val xovers = crossOver(fCnt, parents)
