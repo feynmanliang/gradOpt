@@ -1,11 +1,14 @@
 package com.feynmanliang.optala.examples
 
-import breeze.linalg.{DenseVector, Vector}
-import breeze.numerics.pow
-import breeze.stats.distributions.{Uniform, RandBasis, ThreadLocalRandomGenerator}
+import java.io.File
 
-import com.feynmanliang.optala.{Simplex, GeneticAlgorithm, NelderMeadOptimizer}
 import org.apache.commons.math3.random.MersenneTwister
+
+import breeze.linalg.{DenseMatrix, DenseVector, Vector, csvwrite}
+import breeze.numerics.pow
+import breeze.stats.distributions.{RandBasis, ThreadLocalRandomGenerator, Uniform}
+
+import com.feynmanliang.optala.{GeneticAlgorithm, NelderMeadOptimizer, Simplex}
 
 object GradientFreeExample {
   def main(args: Array[String]) {
@@ -23,7 +26,7 @@ object GradientFreeExample {
 
     implicit val rand = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(seed)))
 
-    println(s"Optimizing 6HCF using Nedler-Mead")
+    println(s"===Optimizing 6HCF using Nedler-Mead===")
     val nmOpt = new NelderMeadOptimizer(maxSteps = 1000, tol = 1E-10)
     val initialSimplex = Simplex(Seq.fill(8){
       val simplexPoint = DenseVector(Uniform(-2D,2D).sample(), Uniform(-1D,1D).sample())
@@ -31,18 +34,33 @@ object GradientFreeExample {
     })
     nmOpt.minimize(f, initialSimplex, reportPerf = true) match {
       case (_, Some(perf)) =>
-        val sstar = perf.stateTrace.last
-        val xstar = sstar.points.minBy(_._2)._1
-        val fstar = f(xstar)
-        println(s"$xstar,\n" +
-          s"fOpt:$fstar," +
+        val sStar = perf.stateTrace.last
+        val xStar = sStar.points.minBy(_._2)._1
+        val fStar = f(xStar)
+
+        // rows = (x1,y1,x2,y2,...), columns = iterations
+        val stateTrace = DenseMatrix.horzcat(perf.stateTrace.map { simplex =>
+          DenseMatrix(simplex.points.map(_._1.toArray).flatten)
+        }: _*)
+        val stateTraceFile = new File("results/nm-stateTrace.csv")
+        csvwrite(stateTraceFile, stateTrace)
+        println(s"Wrote stateTrace to $stateTraceFile")
+
+         // objective value at best point on simplex
+        val objTrace = DenseMatrix(perf.stateTrace.map(_.points.map(_._2).min): _*)
+        val objTraceFile = new File("results/nm-objTrace.csv")
+        csvwrite(objTraceFile, objTrace)
+        println(s"Wrote objTrace to $objTraceFile")
+
+        println(s"xStar: $xStar\n" +
+          s"fStar:$fStar\n" +
           s"numIters:${perf.stateTrace.length}\n" +
           s"numObjEval: ${perf.numObjEval}\n" +
           s"numGradEval:${perf.numGradEval}")
       case _ => sys.error("No result found!")
     }
 
-    println(s"Optimizing 6HCF using GA")
+    println(s"===Optimizing 6HCF using GA===")
     val ga = new GeneticAlgorithm(maxSteps = 1000)
     val popSize = 20
     val eliteCount = 2
@@ -51,8 +69,28 @@ object GradientFreeExample {
       case (_, Some(perf)) =>
         val xstar = perf.stateTrace.last.population.minBy(_._2)._1
         val fstar = f(xstar)
-        println(s"popSize:$popSize,xstar:$xstar,fstar:$fstar,numSteps:${perf.stateTrace.length}," +
-          s"fEval:${perf.numObjEval},dfEval:${perf.numGradEval}")
+
+        // rows = (x1,y1,x2,y2,...), columns = iterations
+        val stateTrace = DenseMatrix.horzcat(perf.stateTrace.map { gen =>
+          DenseMatrix(gen.population.map(_._1.toArray).flatten)
+        }: _*)
+        val stateTraceFile = new File("results/ga-stateTrace.csv")
+        csvwrite(stateTraceFile, stateTrace)
+        println(s"Wrote stateTrace to $stateTraceFile")
+
+        // objective value at best point on simplex
+        val objTrace = DenseMatrix(perf.stateTrace.map(_.population.map(_._2).min): _*)
+        val objTraceFile = new File("results/ga-objTrace.csv")
+        csvwrite(objTraceFile, objTrace)
+        println(s"Wrote objTrace to $objTraceFile")
+
+        println(s"popSize: $popSize\n" +
+          s"eliteCount: $eliteCount\n" +
+          s"xstar:$xstar\n" +
+          s"fstar:$fstar\n" +
+          s"numSteps:${perf.stateTrace.length}\n" +
+          s"fEval:${perf.numObjEval}\n" +
+          s"dfEval:${perf.numGradEval}")
       case _ => sys.error("No result found!")
     }
   }

@@ -5,7 +5,7 @@ import breeze.linalg._
 /** Nelder-Mead simplex, refined at each iteration */
 case class Simplex(points: Seq[(Vector[Double], Double)]) {
   val sortedPoints = points.sortBy(_._2)
-  val n = sortedPoints.size - 1D
+  private[optala] val n = sortedPoints.size - 1D
 
   /** Centroid of the first n points */
   val nCentroid: Vector[Double] = sortedPoints.init.map(_._1).reduce(_+_) / n
