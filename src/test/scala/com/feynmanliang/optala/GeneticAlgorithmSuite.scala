@@ -30,7 +30,7 @@ class GeneticAlgorithmSuite extends FunSpec {
         assert(init.population.size === popSize)
       }
       it("respects the bounds") {
-        assert(init.population.map(_._1).forall(x => ((lb :<= x) :& (x :<= ub)).all))
+        assert(init.population.map(_._1).forall(x => all((lb :<= x) :& (x :<= ub))))
       }
     }
 
@@ -68,21 +68,20 @@ class GeneticAlgorithmSuite extends FunSpec {
         assert(mutants.toSet.size === mutants.size)
       }
       it("stays within bounds") {
-        assert(mutants.map(_._1).forall(x => ((lb :<= x) :& (x :<= ub)).all))
+        assert(mutants.map(_._1).forall(x => all((lb :<= x) :& (x :<= ub))))
       }
     }
 
     describe("when run on six-hump camelback function (6HCF)") {
       ga.minimize(f, lb, ub, popSize=popSize, eliteCount=2, xoverFrac=0.8, seed=Some(seed)) match {
-        case (_, Some(perf)) => {
+        case (_, Some(perf)) =>
           it("monotonically decreases the best point's objective") {
-            assert(perf.xTrace.map(_._1).map(_.bestIndividual()._2).sliding(2).forall(x => x(0) >= x(1)))
+            assert(perf.stateTrace.map(_._1).map(_.bestIndividual()._2).sliding(2).forall(x => x.head >= x(1)))
           }
           it("decreases average objective value over all population") {
-            val avgObjTrace = perf.xTrace.map(_._2)
+            val avgObjTrace = perf.stateTrace.map(_._2)
             assert(avgObjTrace.take(10).sum >= avgObjTrace.takeRight(10).sum)
           }
-        }
         case _ => fail("error")
       }
     }

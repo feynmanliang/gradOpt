@@ -71,22 +71,21 @@ class GradientOptimizerSuite extends FunSpec {
         for {
           x0 <- xInits
         } describe(s"when initialized at $x0") {
-          opt.minimize(f, df, x0, gradientAlgorithm, CubicInterpolation, true) match {
-            case (Some(xStar), Some(perf)) => {
-              val numIters = perf.xTrace.size
+          opt.minimize(f, df, x0, gradientAlgorithm, CubicInterpolation, reportPerf = true) match {
+            case (Some(xStar), Some(perf)) =>
+              val numIters = perf.stateTrace.size
               it("should have at least one iteration") {
                 assert(numIters >= 1)
               }
               it(s"should have evaluated f >= $numIters times") {
-                assert(perf.numEvalF > numIters)
+                assert(perf.numObjEval > numIters)
               }
               it(s"should have evaluated df >= $numIters times") {
-                assert(perf.numEvalDf > numIters)
+                assert(perf.numGradEval > numIters)
               }
               it(s"should be within $tol to $xOpt") {
                 assert(norm((xStar - xOpt).toDenseVector) < tol)
               }
-            }
             case _ => fail("Minimize failed to return answer or perf diagnostics")
           }
         }
@@ -110,27 +109,26 @@ class GradientOptimizerSuite extends FunSpec {
         describe(s"using $gradAlgo") {
           for (lineAlgo <- List(Exact, CubicInterpolation)) {
             describe(s"using $lineAlgo") {
-              opt.minQuadraticForm(A, b, x0, gradAlgo, lineAlgo, true) match {
-                case (Some(xStar), Some(perf)) => {
-                  val numIters = perf.xTrace.size
+              opt.minQuadraticForm(A, b, x0, gradAlgo, lineAlgo, reportPerf = true) match {
+                case (Some(xStar), Some(perf)) =>
+                  val numIters = perf.stateTrace.size
                   it("should have at least one iteration") {
                     assert(numIters >= 1)
                   }
                   lineAlgo match {
                     case CubicInterpolation => it(s"should have evaluated f >= $numIters times") {
-                      assert(perf.numEvalF > numIters)
+                      assert(perf.numObjEval > numIters)
                     }
                     case Exact => it(s"should not have evaluated f") {
-                      assert(perf.numEvalF == 0)
+                      assert(perf.numObjEval == 0)
                     }
                   }
                   it(s"should have evaluated df >= $numIters times") {
-                    assert(perf.numEvalDf > numIters)
+                    assert(perf.numGradEval > numIters)
                   }
                   it(s"should be within $tol to $xOpt") {
                     assert(norm((xStar - xOpt).toDenseVector) < tol)
                   }
-                }
                 case _ => fail("Minimize failed to return answer or perf diagnostics")
               }
             }
