@@ -13,7 +13,7 @@ class NelderMeadSuite extends FunSpec {
 
       describe(s"when initialized using a known ``good'' simplex") {
         val tol = 1E-4
-        var init = Simplex(
+        val init = Simplex(
           List(
             DenseVector(-1D,.1D),
             DenseVector(-.1D,-3D),
@@ -54,5 +54,3 @@ class NelderMeadSuite extends FunSpec {
       }
     }
   }
-
-  // vim: set ts=2 sw=2 et sts=2:

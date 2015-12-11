@@ -1,9 +1,9 @@
 package com.feynmanliang.optala
 
+import org.scalatest._
+
 import breeze.linalg._
 import breeze.numerics._
-
-import org.scalatest._
 
 import com.feynmanliang.optala.GradientAlgorithm._
 import com.feynmanliang.optala.LineSearchConfig._
@@ -138,4 +138,3 @@ class GradientOptimizerSuite extends FunSpec {
     }
   }
 }
-// vim: set ts=2 sw=2 et sts=2:

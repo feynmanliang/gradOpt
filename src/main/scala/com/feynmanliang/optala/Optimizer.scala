@@ -26,7 +26,3 @@ private[optala] class FunctionWithCounter[-T, +U](f: T => U) extends Function[T,
     f(t)
   }
 }
-
-object Optimizer {
-
-}

@@ -7,7 +7,6 @@ import breeze.linalg._
 import breeze.numerics._
 import breeze.stats.distributions._
 
-
 class GeneticAlgorithmSuite extends FunSpec {
   val seed = 42
   implicit val randBasis = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(seed)))
@@ -87,5 +86,3 @@ class GeneticAlgorithmSuite extends FunSpec {
     }
   }
 }
-
-// vim: set ts=2 sw=2 et sts=2:
