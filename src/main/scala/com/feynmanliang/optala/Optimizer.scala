@@ -8,7 +8,7 @@ package com.feynmanliang.optala
   * @tparam T the type of the interal algorithm state
   */
 private[optala] case class PerfDiagnostics[T](
-    stateTrace: List[(T, Double)],
+    stateTrace: List[T],
     numObjEval: Long, // make sure the Seq is evaluated before materializing
     numGradEval: Long)
 

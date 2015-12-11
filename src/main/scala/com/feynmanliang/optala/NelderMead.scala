@@ -1,7 +1,6 @@
 package com.feynmanliang.optala
 
 import breeze.linalg._
-import breeze.numerics._
 
 /** Nelder-Mead simplex, refined at each iteration */
 case class Simplex(points: Seq[(Vector[Double], Double)]) {
@@ -59,22 +58,22 @@ class NelderMeadOptimizer(
 
     if (reportPerf) {
       val xValuesSeq = xValues.toSeq
-      val res = xValuesSeq.sliding(2).find(x => norm(x(1)._2 - x(0)._2) < tol).map(_(1))
+      val res = xValuesSeq.sliding(2).find(x => norm(x(1)._2 - x.head._2) < tol).map(_(1))
       val trace = res match {
         case Some(xStar) => xValuesSeq
           .sliding(2)
-          .takeWhile(x => norm(x(1)._2 - x(0)._2) >= tol)
-          .map(_(0))
-          .toSeq :+ xStar
+          .takeWhile(x => norm(x(1)._2 - x.head._2) >= tol)
+          .map(_(0)._1)
+          .toSeq :+ xStar._1
         case None => xValuesSeq
           .sliding(2)
-          .takeWhile(x => norm(x(1)._2 - x(0)._2) >= tol)
-          .map(_(0))
+          .takeWhile(x => norm(x(1)._2 - x.head._2) >= tol)
+          .map(_(0)._1)
       }
       val perf = PerfDiagnostics(trace.toList, fCnt.numCalls, 0)
       (res.map(s => s._1.points.map(_._1).reduce(_+_) / (1D * s._1.points.size)), Some(perf))
     } else {
-      val res = xValues.sliding(2).find(x => norm(x(1)._2 - x(0)._2) < tol).map(_(1))
+      val res = xValues.sliding(2).find(x => norm(x(1)._2 - x.head._2) < tol).map(_(1))
       (res.map(s => s._1.points.map(_._1).reduce(_+_) / (1D * s._1.points.size)), None)
     }
   }

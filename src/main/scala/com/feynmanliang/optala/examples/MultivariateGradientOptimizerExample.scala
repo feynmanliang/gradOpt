@@ -35,9 +35,10 @@ object MultivariateGradientOptimizerExample {
     println(s"Optimizing Rosenbrock function using Nedler-Mead")
     nmOpt.minimize(f, 2, 8, reportPerf = true) match {
       case (_, Some(perf)) =>
-        val (sstar, fstar) = perf.stateTrace.last
-        val xstar = sstar.points.map(_._1).reduce(_ + _) / (1D * sstar.points.size)
-        println(s"x0:$x0,xstar:$xstar,fstar:$fstar,normGrad:${perf.stateTrace.last._2}," +
+        val sstar = perf.stateTrace.last
+        val xstar = sstar.points.minBy(_._2)._1
+        val fstar = f(xstar)
+        println(s"x0:$x0,xstar:$xstar,fstar:$fstar," +
           s"numSteps:${perf.stateTrace.length},fEval:${perf.numObjEval},dfEval:${perf.numGradEval}")
       case _ => println(s"No results for x0=$x0!!!")
     }

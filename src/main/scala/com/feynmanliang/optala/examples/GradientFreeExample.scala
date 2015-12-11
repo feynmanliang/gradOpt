@@ -31,8 +31,9 @@ object GradientFreeExample {
     })
     nmOpt.minimize(f, initialSimplex, reportPerf = true) match {
       case (_, Some(perf)) =>
-        val (sstar, fstar) = perf.stateTrace.last
-        val xstar = sstar.points.map(_._1).reduce(_ + _) / sstar.points.size.toDouble
+        val sstar = perf.stateTrace.last
+        val xstar = sstar.points.minBy(_._2)._1
+        val fstar = f(xstar)
         println(s"$xstar,\n" +
           s"fOpt:$fstar," +
           s"numIters:${perf.stateTrace.length}\n" +
@@ -48,7 +49,8 @@ object GradientFreeExample {
     val xoverFrac = 0.8
     ga.minimize(f, lb, ub, popSize, eliteCount, xoverFrac, Some(seed)) match {
       case (_, Some(perf)) =>
-        val (xstar, fstar) = perf.stateTrace.last._1.population.minBy(_._2)
+        val xstar = perf.stateTrace.last.population.minBy(_._2)._1
+        val fstar = f(xstar)
         println(s"popSize:$popSize,xstar:$xstar,fstar:$fstar,numSteps:${perf.stateTrace.length}," +
           s"fEval:${perf.numObjEval},dfEval:${perf.numGradEval}")
       case _ => sys.error("No result found!")

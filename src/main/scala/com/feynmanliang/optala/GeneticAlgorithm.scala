@@ -1,12 +1,10 @@
 package com.feynmanliang.optala
 
-import scala.util.Random
-
+import breeze.linalg._
+import breeze.stats.distributions._
 import org.apache.commons.math3.random.MersenneTwister
 
-import breeze.linalg._
-import breeze.numerics._
-import breeze.stats.distributions._
+import scala.util.Random
 
 case class Generation(population: Seq[(Vector[Double],Double)]) {
   def meanNegFitness(): Double = population.map(_._2).sum / (1D*population.size)
@@ -49,7 +47,7 @@ class GeneticAlgorithm(var maxSteps: Int = 1000) {
 
     val iters = successors.take(maxSteps)
     val perf = PerfDiagnostics(
-      iters.map(g => (g, g.meanNegFitness())).toList,
+      iters.toList,
       fCnt.numCalls,
       0
     )
@@ -61,9 +59,9 @@ class GeneticAlgorithm(var maxSteps: Int = 1000) {
       implicit randBasis: RandBasis = Rand): Generation = {
     val n = lb.size
     val center = (ub + lb) / 2D
-    val range = (ub - lb)
+    val range = ub - lb
     Generation(List.fill(popSize) {
-      val x = (range :* (DenseVector.rand(n, Uniform(-.5D,.5D)))) + center
+      val x = (range :* DenseVector.rand(n, Uniform(-.5D,.5D))) + center
       (x, f(x))
     })
   }
@@ -83,7 +81,7 @@ class GeneticAlgorithm(var maxSteps: Int = 1000) {
       implicit randBasis: RandBasis = Rand): Seq[(Vector[Double],Double)] = {
     val dist = Uniform(0D, 1D)
     parents.grouped(2).map { x =>
-      val p1 = x(0)._1
+      val p1 = x.head._1
       val p2 = x(1)._1
       val t = dist.sample()
       val child = t*p1 + (1D - t)*p2

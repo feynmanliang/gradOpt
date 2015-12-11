@@ -34,7 +34,7 @@ class NelderMeadSuite extends FunSpec {
                 assert(norm((xStar - xOpt).toDenseVector) < tol)
               }
               it(s"should monotonically decrease average function value (since obj is convex)") {
-                val avgFVals = perf.stateTrace.map(_._2)
+                val avgFVals = perf.stateTrace.map( _.points.map(_._2).sum)
                 assert(avgFVals.sliding(2).forall(x => x.head >= x(1)))
               }
             case _ => fail("failed to return answer or perf diagnostics")
@@ -45,7 +45,7 @@ class NelderMeadSuite extends FunSpec {
           nm.minimize(f, 2, 5, reportPerf = true) match {
             case (_, Some(perf)) =>
               it(s"should monotonically decrease average function value (since obj is convex)") {
-                val avgFVals = perf.stateTrace.map(_._2)
+                val avgFVals = perf.stateTrace.map(_.points.map(_._2).sum)
                 assert(avgFVals.sliding(2).forall(x => x.head >= x(1)))
               }
             case _ => fail("failed to return perf diagnostics")

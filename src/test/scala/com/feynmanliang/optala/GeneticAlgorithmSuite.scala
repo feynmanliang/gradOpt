@@ -75,10 +75,10 @@ class GeneticAlgorithmSuite extends FunSpec {
       ga.minimize(f, lb, ub, popSize=popSize, eliteCount=2, xoverFrac=0.8, seed=Some(seed)) match {
         case (_, Some(perf)) =>
           it("monotonically decreases the best point's objective") {
-            assert(perf.stateTrace.map(_._1).map(_.bestIndividual()._2).sliding(2).forall(x => x.head >= x(1)))
+            assert(perf.stateTrace.map(_.bestIndividual()._2).sliding(2).forall(x => x.head >= x(1)))
           }
           it("decreases average objective value over all population") {
-            val avgObjTrace = perf.stateTrace.map(_._2)
+            val avgObjTrace = perf.stateTrace.map(_.meanNegFitness())
             assert(avgObjTrace.take(10).sum >= avgObjTrace.takeRight(10).sum)
           }
         case _ => fail("error")
