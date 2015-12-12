@@ -2,6 +2,7 @@ Optala: Numerical Optimizations in Scala
 ========================================
 
 ![Nelder Mead on 6HCF](https://raw.githubusercontent.com/feynmanliang/optala/master/docs/nelder-mead-6HCF.gif)
+
 *Nelder Mead running on 6 Hump Camelback Function*
 
 
