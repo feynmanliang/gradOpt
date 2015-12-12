@@ -1,6 +1,11 @@
 Optala: Numerical Optimizations in Scala
 ========================================
 
+![Nelder Mead on 6HCF](https://raw.github.com/feynmanliang/optala/master/docs/nelder-meand-6HCF.gif)
+*Nelder Mead running on 6 Hump Camelback Function*
+
+
+
 This package provdes implementations for some common numerical
 optimization algorithms. All algorithms solve an unconstrained
 minimization over a real vector space.
