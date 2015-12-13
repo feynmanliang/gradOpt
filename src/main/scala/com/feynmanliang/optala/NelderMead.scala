@@ -21,9 +21,9 @@ case class Simplex(points: Seq[(Vector[Double], Double)]) {
 * @param tol the minimum change in decision variable norm to continue
 */
 class NelderMeadOptimizer(
+    var maxObjectiveEvals: Int = Int.MaxValue,
     var maxSteps: Int = 50000,
     var tol: Double = 1E-6) {
-
   /**
   * Initializes Nedler Mead with random `n`-point simplex in `d` dimensions,
   * each entry ~ U[-1,1].
@@ -52,6 +52,7 @@ class NelderMeadOptimizer(
     val fCnt = new FunctionWithCounter(f)
 
     val xValues = nelderMead(fCnt, init)
+      .takeWhile(_ => fCnt.numCalls <= maxObjectiveEvals)
       .take(maxSteps)
       .map((s:Simplex) => (s, s.points.map(_._2).sum / (s.points.size * 1D)))
       .iterator
@@ -125,5 +126,3 @@ class NelderMeadOptimizer(
     }
   }
 }
-
-// vim: set ts=2 sw=2 et sts=2:

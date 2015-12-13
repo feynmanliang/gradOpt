@@ -27,7 +27,7 @@ object GradientFreeExample {
     implicit val rand = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(seed)))
 
     println(s"===Optimizing 6HCF using Nedler-Mead===")
-    val nmOpt = new NelderMeadOptimizer(maxSteps = 1000, tol = 1E-10)
+    val nmOpt = new NelderMeadOptimizer(maxObjectiveEvals = 1000, maxSteps = Int.MaxValue, tol = 0D)
     val initialSimplex = Simplex(Seq.fill(8){
       val simplexPoint = DenseVector(Uniform(-2D,2D).sample(), Uniform(-1D,1D).sample())
       (simplexPoint, f(simplexPoint))
@@ -61,7 +61,7 @@ object GradientFreeExample {
     }
 
     println(s"===Optimizing 6HCF using GA===")
-    val ga = new GeneticAlgorithm(maxSteps = 1000)
+    val ga = new GeneticAlgorithm(maxObjectiveEvals = 1000, maxSteps = Int.MaxValue)
     val popSize = 20
     val eliteCount = 2
     val xoverFrac = 0.8
