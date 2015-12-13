@@ -36,7 +36,7 @@ class GeneticAlgorithmSuite extends FunSpec {
       val init = ga.initialize(f, lb, ub, popSize)
 
       for {
-        strategy <- SelectionStrategy.values
+        strategy <- List(FitnessProportionateSelection, StochasticUniversalSampling, TournamentSelection(0.5))
       } {
         describe(s"$strategy") {
           it("selects the number of specified parents") {

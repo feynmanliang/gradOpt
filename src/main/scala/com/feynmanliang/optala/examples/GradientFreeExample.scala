@@ -8,7 +8,7 @@ import breeze.linalg.{DenseMatrix, DenseVector, Vector, csvwrite}
 import breeze.numerics.pow
 import breeze.stats.distributions.{RandBasis, ThreadLocalRandomGenerator, Uniform}
 
-import com.feynmanliang.optala.{SelectionStrategy, GeneticAlgorithm, NelderMeadOptimizer, Simplex}
+import com.feynmanliang.optala._
 
 object GradientFreeExample {
   def main(args: Array[String]) {
@@ -65,7 +65,7 @@ object GradientFreeExample {
     val popSize = 20
     val eliteCount = 2
     val xoverFrac = 0.8
-    ga.minimize(f, lb, ub, popSize, SelectionStrategy.TournamentSelection, eliteCount, xoverFrac, Some(seed)) match {
+    ga.minimize(f, lb, ub, popSize, TournamentSelection(0.5), eliteCount, xoverFrac, Some(seed)) match {
       case (_, Some(perf)) =>
         val xstar = perf.stateTrace.last.population.minBy(_._2)._1
         val fstar = f(xstar)

@@ -12,7 +12,6 @@ case class Generation(population: Seq[(Vector[Double],Double)]) {
 }
 
 class GeneticAlgorithm(var maxSteps: Int = 1000) {
-  import SelectionStrategy._
   /**
   *  Minimizes `f` subject to decision variables inside hypercube defined by `lb` and `ub`.
   *  TODO: perf diagnostics
@@ -101,9 +100,11 @@ class GeneticAlgorithm(var maxSteps: Int = 1000) {
         val (point, negFit, _) = popWithCumSums.dropWhile(_._3 < p).head
         (point, negFit)
       }
-    case TournamentSelection =>
-      // TODO: allow tournament size to be configured
-      val dist = new Bernoulli(0.5, rand=implicitly)
+    case TournamentSelection(tournamentProp) =>
+      require(
+        0D <= tournamentProp && tournamentProp <= 1D,
+        "tournament proportion must be in [0,1] but got $tournamentProp")
+      val dist = new Bernoulli(tournamentProp, rand=implicitly)
       Seq.fill(n) {
         pop.zip(dist.sample(pop.size))
           .filter(_._2)
@@ -141,10 +142,7 @@ class GeneticAlgorithm(var maxSteps: Int = 1000) {
   }
 }
 
-object SelectionStrategy extends Enumeration {
-  type SelectionStrategy = Value
-  val FitnessProportionateSelection = Value("Fitness Proportionate Selection")
-  val StochasticUniversalSampling = Value("Stochastic Universal Sampling")
-  val TournamentSelection = Value("Tournament Selection")
-}
-
+sealed trait SelectionStrategy
+case object FitnessProportionateSelection extends SelectionStrategy
+case object StochasticUniversalSampling extends SelectionStrategy
+case class TournamentSelection(tournamentProportion: Double) extends SelectionStrategy
