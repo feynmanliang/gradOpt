@@ -1,13 +1,10 @@
 package com.feynmanliang.optala
 
-import breeze.linalg.Options.Value
 import breeze.linalg._
 import breeze.stats.distributions._
 import org.apache.commons.math3.random.MersenneTwister
 
 import scala.util.Random
-
-import SelectionStrategy._
 
 case class Generation(population: Seq[(Vector[Double],Double)]) {
   def meanNegFitness(): Double = population.map(_._2).sum / (1D*population.size)
@@ -15,6 +12,7 @@ case class Generation(population: Seq[(Vector[Double],Double)]) {
 }
 
 class GeneticAlgorithm(var maxSteps: Int = 1000) {
+  import SelectionStrategy._
   /**
   *  Minimizes `f` subject to decision variables inside hypercube defined by `lb` and `ub`.
   *  TODO: perf diagnostics
@@ -83,8 +81,7 @@ class GeneticAlgorithm(var maxSteps: Int = 1000) {
     case StochasticUniversalSampling =>
       val f = pop.map(_._2).sum
       val stepSize = f / n
-      val dist = new Uniform(0, stepSize)
-      val start = dist.sample()
+
       // (point, negative fitness, sum of fitnesses normalized to be above zero)
       val minFitness = -1D*pop.map(_._2).max
       val popWithCumSums = pop.foldRight(List[(Vector[Double],Double,Double)]()) { case (x,acc) =>
@@ -93,8 +90,10 @@ class GeneticAlgorithm(var maxSteps: Int = 1000) {
           case Nil => (x._1, x._2, normalizedFitness) :: acc
           case y::_ => (x._1, x._2, normalizedFitness + y._3) :: acc
         }
-      }
-      (start until n*stepSize by stepSize).map { p =>
+      }.reverse
+
+      val start = (new Uniform(0, stepSize)).sample()
+      (start to n*stepSize by stepSize).map { p =>
         val (point, negFit, _) = popWithCumSums.dropWhile(_._3 < p).head
         (point, negFit)
       }

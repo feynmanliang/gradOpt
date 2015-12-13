@@ -1,11 +1,10 @@
 package com.feynmanliang.optala
 
-import org.apache.commons.math3.random.MersenneTwister
-import org.scalatest._
-
 import breeze.linalg._
 import breeze.numerics._
 import breeze.stats.distributions._
+import org.apache.commons.math3.random.MersenneTwister
+import org.scalatest._
 
 class GeneticAlgorithmSuite extends FunSpec {
   val seed = 42
@@ -36,12 +35,25 @@ class GeneticAlgorithmSuite extends FunSpec {
     describe("selectParents") {
       val init = ga.initialize(f, lb, ub, popSize)
 
-      it("selects the number of specified parents") {
-        assert(ga.selectParents(init.population, 10).size === 10)
-      }
-      it("samples with replacement") {
-        val parents = ga.selectParents(init.population, popSize*2)
-        assert(parents.toSet.size <= (parents.size + 1) / 2)
+      for {
+        strategy <- SelectionStrategy.values
+      } {
+        describe(s"$strategy") {
+          it("selects the number of specified parents") {
+            assert(ga.selectParents(init.population, strategy, 10).size === 10)
+          }
+          it("samples with replacement") {
+            val parents = ga.selectParents(init.population, strategy, popSize*2)
+            assert(parents.toSet.size <= (parents.size + 1) / 2)
+          }
+          it("selects individuals with higher than average fitness") {
+            // TODO: use random seeds to fix flakiness
+            val selected = ga.selectParents(init.population, strategy, popSize*2)
+            val selectedAvgFitness = selected.map(-1D*_._2).sum / selected.size.toDouble
+            val genAvgFitness = -1D*init.meanNegFitness()
+            assert(selectedAvgFitness >= genAvgFitness)
+          }
+        }
       }
     }
 
