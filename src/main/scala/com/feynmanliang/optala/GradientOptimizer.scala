@@ -167,5 +167,3 @@ object LineSearchConfig extends Enumeration {
   val CubicInterpolation = Value("Cubic Interpolation")
   val Exact = Value("Exact Line Search")
 }
-
-// vim: set ts=2 sw=2 et sts=2:

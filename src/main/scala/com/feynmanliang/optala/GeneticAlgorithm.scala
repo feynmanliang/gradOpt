@@ -1,10 +1,13 @@
 package com.feynmanliang.optala
 
+import breeze.linalg.Options.Value
 import breeze.linalg._
 import breeze.stats.distributions._
 import org.apache.commons.math3.random.MersenneTwister
 
 import scala.util.Random
+
+import SelectionStrategy._
 
 case class Generation(population: Seq[(Vector[Double],Double)]) {
   def meanNegFitness(): Double = population.map(_._2).sum / (1D*population.size)
@@ -21,6 +24,7 @@ class GeneticAlgorithm(var maxSteps: Int = 1000) {
       lb: Vector[Double],
       ub: Vector[Double],
       popSize: Int = 20,
+      selectionStrategy: SelectionStrategy = FitnessProportionateSelection,
       eliteCount: Int = 2,
       xoverFrac: Double = 0.8,
       seed: Option[Long] = None): (Option[Vector[Double]], Option[PerfDiagnostics[Generation]]) = {
@@ -36,7 +40,7 @@ class GeneticAlgorithm(var maxSteps: Int = 1000) {
     val initGen = initialize(fCnt, lb, ub, popSize)
 
     val successors: Stream[Generation] = Stream.iterate(initGen) { gen =>
-      val parents = selectParents(gen.population, max(2*xoverCount, mutantCount))
+      val parents = selectParents(gen.population, selectionStrategy, max(2*xoverCount, mutantCount))
 
       val elites = gen.population.sortBy(_._2).take(eliteCount)
       val xovers = crossOver(fCnt, parents)
@@ -67,12 +71,42 @@ class GeneticAlgorithm(var maxSteps: Int = 1000) {
   }
 
   private[optala] def selectParents(
-      pop: Seq[(Vector[Double],Double)], n: Int)(
-      implicit randBasis: RandBasis = Rand): Seq[(Vector[Double],Double)] = {
-    val minFitness = -1D*pop.map(_._2).max
-    // TODO: fix multinomial random seed
-    val dist = new Multinomial(Counter(pop.map(x => (x, -1D*x._2 - minFitness + 1D))))
-    dist.sample(n)
+      pop: Seq[(Vector[Double],Double)],
+      strategy: SelectionStrategy,
+      n: Int)(
+      implicit randBasis: RandBasis = Rand): Seq[(Vector[Double],Double)] = strategy match {
+    case FitnessProportionateSelection =>
+      val minFitness = -1D*pop.map(_._2).max
+      // TODO: fix multinomial random seed
+      val dist = new Multinomial(Counter(pop.map(x => (x, -1D*x._2 - minFitness + 1D))))
+      dist.sample(n)
+    case StochasticUniversalSampling =>
+      val f = pop.map(_._2).sum
+      val stepSize = f / n
+      val dist = new Uniform(0, stepSize)
+      val start = dist.sample()
+      // (point, negative fitness, sum of fitnesses normalized to be above zero)
+      val minFitness = -1D*pop.map(_._2).max
+      val popWithCumSums = pop.foldRight(List[(Vector[Double],Double,Double)]()) { case (x,acc) =>
+        val normalizedFitness =  -1D*x._2 - minFitness + 1D
+        acc match {
+          case Nil => (x._1, x._2, normalizedFitness) :: acc
+          case y::_ => (x._1, x._2, normalizedFitness + y._3) :: acc
+        }
+      }
+      (start until n*stepSize by stepSize).map { p =>
+        val (point, negFit, _) = popWithCumSums.dropWhile(_._3 < p).head
+        (point, negFit)
+      }
+    case TournamentSelection =>
+      // TODO: allow tournament size to be configured
+      val dist = new Bernoulli(0.5, rand=implicitly)
+      Seq.fill(n) {
+        pop.zip(dist.sample(pop.size))
+          .filter(_._2)
+          .map(_._1)
+          .minBy(_._2) // min by negative fitness = objective value
+      }
   }
 
   private[optala] def crossOver(
@@ -104,4 +138,10 @@ class GeneticAlgorithm(var maxSteps: Int = 1000) {
   }
 }
 
-// vim: set ts=2 sw=2 et sts=2:
+object SelectionStrategy extends Enumeration {
+  type SelectionStrategy = Value
+  val FitnessProportionateSelection = Value("Fitness Proportionate Selection")
+  val StochasticUniversalSampling = Value("Stochastic Universal Sampling")
+  val TournamentSelection = Value("Tournament Selection")
+}
+
