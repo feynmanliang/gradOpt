@@ -11,7 +11,8 @@ case class Generation(population: Seq[(Vector[Double],Double)]) {
   def bestIndividual(): (Vector[Double],Double) = population.minBy(_._2)
 }
 
-class GeneticAlgorithm(var maxSteps: Int = 1000) {
+class GeneticAlgorithm(
+  var maxObjectiveEvals: Int = 1000) {
   /**
   *  Minimizes `f` subject to decision variables inside hypercube defined by `lb` and `ub`.
   *  TODO: perf diagnostics
@@ -46,7 +47,7 @@ class GeneticAlgorithm(var maxSteps: Int = 1000) {
       Generation(elites ++ xovers ++ mutants)
     }
 
-    val iters = successors.take(maxSteps)
+    val iters = successors.takeWhile(_ => fCnt.numCalls <= maxObjectiveEvals)
     val perf = PerfDiagnostics(
       iters.toList,
       fCnt.numCalls,

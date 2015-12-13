@@ -19,7 +19,8 @@ class GeneticAlgorithmSuite extends FunSpec {
     val lb = DenseVector(-2D, -1D)
     val ub = DenseVector(2D, 1D)
     val popSize = 20
-    val ga = new GeneticAlgorithm(maxSteps = 1000)
+    val maxObjEvals = 1000
+    val ga = new GeneticAlgorithm(maxObjectiveEvals = maxObjEvals)
 
     describe("initialize") {
       val init = ga.initialize(f, lb, ub, popSize)
@@ -92,6 +93,10 @@ class GeneticAlgorithmSuite extends FunSpec {
           it("decreases average objective value over all population") {
             val avgObjTrace = perf.stateTrace.map(_.meanNegFitness())
             assert(avgObjTrace.take(10).sum >= avgObjTrace.takeRight(10).sum)
+          }
+          it(s"terminates after evaluating objective function $maxObjEvals times") {
+            // assumes each iteration evaluates objective less that 0.2*maxObjectiveEvals
+            assert(perf.numObjEval <= (maxObjEvals*1.2).toInt)
           }
         case _ => fail("error")
       }
