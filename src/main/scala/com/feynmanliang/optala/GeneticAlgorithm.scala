@@ -79,20 +79,24 @@ class GeneticAlgorithm(var maxSteps: Int = 1000) {
       val dist = new Multinomial(Counter(pop.map(x => (x, -1D*x._2 - minFitness + 1D))))
       dist.sample(n)
     case StochasticUniversalSampling =>
-      val f = pop.map(_._2).sum
+      val minFitness = -1D*pop.map(_._2).max
+      // (individual, fitness normalized s.t. > 0)
+      val popNorm = pop.map { case (individual, negFitness) =>
+        val fitness =  -1D*negFitness - minFitness + 1D
+        (individual, fitness)
+      }
+      val f = popNorm.map(_._2).sum
       val stepSize = f / n
 
       // (point, negative fitness, sum of fitnesses normalized to be above zero)
-      val minFitness = -1D*pop.map(_._2).max
-      val popWithCumSums = pop.foldRight(List[(Vector[Double],Double,Double)]()) { case (x,acc) =>
-        val normalizedFitness =  -1D*x._2 - minFitness + 1D
+      val popWithCumSums = popNorm.foldRight(List[(Vector[Double],Double,Double)]()) { case ((individual, fitness),acc) =>
         acc match {
-          case Nil => (x._1, x._2, normalizedFitness) :: acc
-          case y::_ => (x._1, x._2, normalizedFitness + y._3) :: acc
+          case Nil => (individual, fitness, fitness) :: acc
+          case (_,_,cumFitness)::_ => (individual, fitness, fitness + cumFitness) :: acc
         }
       }.reverse
 
-      val start = (new Uniform(0, stepSize)).sample()
+      val start = new Uniform(0, stepSize).sample()
       (start to n*stepSize by stepSize).map { p =>
         val (point, negFit, _) = popWithCumSums.dropWhile(_._3 < p).head
         (point, negFit)

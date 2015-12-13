@@ -49,7 +49,7 @@ class GeneticAlgorithmSuite extends FunSpec {
           it("selects individuals with higher than average fitness") {
             // TODO: use random seeds to fix flakiness
             val selected = ga.selectParents(init.population, strategy, popSize*2)
-            val selectedAvgFitness = selected.map(-1D*_._2).sum / selected.size.toDouble
+            val selectedAvgFitness = selected.map(_._2).sum / selected.size.toDouble
             val genAvgFitness = -1D*init.meanNegFitness()
             assert(selectedAvgFitness >= genAvgFitness)
           }
