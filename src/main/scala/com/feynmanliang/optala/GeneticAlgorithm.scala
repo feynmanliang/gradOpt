@@ -111,7 +111,7 @@ class GeneticAlgorithm(
     case TournamentSelection(tournamentProp) =>
       require(
         0D <= tournamentProp && tournamentProp <= 1D,
-        "tournament proportion must be in [0,1] but got $tournamentProp")
+        s"tournament proportion must be in [0,1] but got $tournamentProp")
       Seq.fill(n) {
         Random.shuffle(pop)
           .take(ceil(tournamentProp*pop.size).toInt)

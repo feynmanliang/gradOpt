@@ -41,18 +41,56 @@ object GradientFreeExample {
 
   def main(args: Array[String]) {
     // Nelder-Mead Examples
-//    nmExampleN8()
-//    nmObjEvalEff()
-//    nmConvRate()
-//    nmPerf()
+    nmExample()
+    nmObjEvalEff()
+    nmConvRate()
+    nmPerf()
 
     // Genetic Algorithm Examples
-//    gaExample()
-//    gaObjEvalEff()
-//    gaPerfPopSize()
-//    gaPerfEliteCount()
-//    gaPerfXoverFrac()
+    gaExample()
+    gaObjEvalEff()
+    gaPerfPopSize()
+    gaPerfEliteCount()
+    gaPerfXoverFrac()
     gaPerfSelection()
+  }
+  def nmExample(): Unit = {
+    println(s"===Optimizing 6HCF using Nedler-Mead===")
+    val nmOpt = new NelderMeadOptimizer(maxObjectiveEvals = 1000, maxSteps = Int.MaxValue, tol = 0D)
+    val initialSimplex = Simplex(Seq.fill(8) {
+      val simplexPoint = DenseVector(Uniform(-2D, 2D).sample(), Uniform(-1D, 1D).sample())
+      (simplexPoint, f(simplexPoint))
+    })
+    nmOpt.minimize(f, initialSimplex, reportPerf = true) match {
+      case (_, Some(perf)) =>
+        val sStar = perf.stateTrace.last
+        val xStar = sStar.points.minBy(_._2)._1
+        val fStar = f(xStar)
+
+        // columns = (x1,y1,x2,y2,...), rows = iterations
+        val stateTrace = DenseMatrix.vertcat(perf.stateTrace.map { simplex =>
+          DenseMatrix(simplex.points.flatMap(_._1.toArray))
+        }: _*)
+        val stateTraceFile = new File("results/nm-stateTrace.csv")
+        csvwrite(stateTraceFile, stateTrace)
+        println(s"Wrote stateTrace to $stateTraceFile")
+
+        // objective value at simplex centroid
+        val objTrace = DenseMatrix(perf.stateTrace.map { s =>
+          val candidates = s.points.map(_._1)
+          f(candidates.reduce(_+_) / candidates.size.toDouble)
+        }: _*)
+        val objTraceFile = new File("results/nm-objTrace.csv")
+        csvwrite(objTraceFile, objTrace)
+        println(s"Wrote objTrace to $objTraceFile")
+
+        println(s"xStar: $xStar\n" +
+          s"fStar:$fStar\n" +
+          s"numIters:${perf.stateTrace.length}\n" +
+          s"numObjEval: ${perf.numObjEval}\n" +
+          s"numGradEval:${perf.numGradEval}")
+      case _ => sys.error("No result found!")
+    }
   }
 
   def nmObjEvalEff(): Unit = experimentWithResults("Nelder-Mead obj eval efficiency", "nm-obj-eval-eff.csv") {
@@ -128,53 +166,13 @@ object GradientFreeExample {
         case Some(perf) =>
           val sStar = perf.stateTrace.last
           val xStar = sStar.points.minBy(_._2)._1
-          val distToOpt = xOpts.map(xOpt => norm(xStar.toDenseVector - xOpt)).min
           val distInObj = norm(f(xStar) - fOpt)
           val closestToGlobal = xOpts.contains(localMinima.minBy(xMin => norm(xMin - xStar)))
 
-          DenseMatrix(n.toDouble, distToOpt, distInObj, if (closestToGlobal) 1D else 0D)
+          DenseMatrix(n.toDouble, distInObj, if (closestToGlobal) 1D else 0D)
         case _ => sys.error("No result found!")
       }
     }): _*)
-  }
-
-  def nmExample(): Unit = {
-    println(s"===Optimizing 6HCF using Nedler-Mead===")
-    val nmOpt = new NelderMeadOptimizer(maxObjectiveEvals = 1000, maxSteps = Int.MaxValue, tol = 0D)
-    val initialSimplex = Simplex(Seq.fill(8) {
-      val simplexPoint = DenseVector(Uniform(-2D, 2D).sample(), Uniform(-1D, 1D).sample())
-      (simplexPoint, f(simplexPoint))
-    })
-    nmOpt.minimize(f, initialSimplex, reportPerf = true) match {
-      case (_, Some(perf)) =>
-        val sStar = perf.stateTrace.last
-        val xStar = sStar.points.minBy(_._2)._1
-        val fStar = f(xStar)
-
-        // columns = (x1,y1,x2,y2,...), rows = iterations
-        val stateTrace = DenseMatrix.vertcat(perf.stateTrace.map { simplex =>
-          DenseMatrix(simplex.points.flatMap(_._1.toArray))
-        }: _*)
-        val stateTraceFile = new File("results/nm-stateTrace.csv")
-        csvwrite(stateTraceFile, stateTrace)
-        println(s"Wrote stateTrace to $stateTraceFile")
-
-        // objective value at simplex centroid
-        val objTrace = DenseMatrix(perf.stateTrace.map { s =>
-          val candidates = s.points.map(_._1)
-          f(candidates.reduce(_+_) / candidates.size.toDouble)
-        }: _*)
-        val objTraceFile = new File("results/nm-objTrace.csv")
-        csvwrite(objTraceFile, objTrace)
-        println(s"Wrote objTrace to $objTraceFile")
-
-        println(s"xStar: $xStar\n" +
-          s"fStar:$fStar\n" +
-          s"numIters:${perf.stateTrace.length}\n" +
-          s"numObjEval: ${perf.numObjEval}\n" +
-          s"numGradEval:${perf.numGradEval}")
-      case _ => sys.error("No result found!")
-    }
   }
 
   def gaExample(): Unit = {
@@ -305,17 +303,20 @@ object GradientFreeExample {
       val eliteCount = 2
       val xoverFrac = 0.8
 
+      val schemes = List(FitnessProportionateSelection, StochasticUniversalSampling)
       DenseMatrix.horzcat((for {
-        scheme <- List(FitnessProportionateSelection, StochasticUniversalSampling)
+        i <- schemes.indices
         _ <- 0 until 1000
       } yield {
+        val scheme = schemes(i)
         ga.minimize(f, lb, ub, popSize, scheme, eliteCount, xoverFrac, Some(seed)) match {
           case (_, Some(perf)) =>
             val (xStar, fStar) = perf.stateTrace.last.population.minBy(_._2)
             val distInObj = norm(fStar - fOpt)
             val closestToGlobal = xOpts.contains(localMinima.minBy(xMin => norm(xMin - xStar)))
 
-            DenseMatrix(distInObj, if (closestToGlobal) 1D else 0D)
+
+            DenseMatrix(i.toDouble, distInObj, if (closestToGlobal) 1D else 0D)
           case _ => sys.error("No result found!")
         }
       }): _*)
@@ -328,7 +329,7 @@ object GradientFreeExample {
       val xoverFrac = 0.8
 
       DenseMatrix.horzcat((for {
-        tournamentProb <- 0.05 to 1.0 by 0.05
+        tournamentProb <- 0.05D until 0.95D by 0.05D
         _ <- 0 until 1000
       } yield {
         ga.minimize(f, lb, ub, popSize, TournamentSelection(tournamentProb), eliteCount, xoverFrac, Some(seed)) match {
