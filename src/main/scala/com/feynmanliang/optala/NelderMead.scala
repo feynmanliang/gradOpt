@@ -54,7 +54,7 @@ class NelderMeadOptimizer(
     val xValues = nelderMead(fCnt, init)
       .takeWhile(_ => fCnt.numCalls <= maxObjectiveEvals)
       .take(maxSteps)
-      .map((s:Simplex) => (s, s.points.map(_._2).sum / (s.points.size * 1D)))
+      .map(s => (s, (s.points.map(_._1).reduce(_+_) / s.points.size.toDouble).toDenseVector))
       .iterator
 
     if (reportPerf) {

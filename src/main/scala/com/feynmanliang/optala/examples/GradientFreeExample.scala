@@ -41,8 +41,52 @@ object GradientFreeExample {
 
   def main(args: Array[String]) {
 //    runNelderMead()
-    nmPerf()
+    nmConvRate()
+//    nmPerf()
 //    runGA()
+  }
+
+  def nmConvRate(): Unit = {
+    println(s"===Exploring Nelder-Mead convergence rate===")
+    val n = 8
+    val nmOpt = new NelderMeadOptimizer(maxObjectiveEvals = Int.MaxValue, maxSteps = Int.MaxValue, tol = 1E-6)
+    val resultsN8 = DenseMatrix.horzcat((for {
+      _ <- 0 until 1000
+    } yield {
+      val initialSimplex = Simplex(Seq.fill(n) {
+        val simplexPoint = DenseVector(Uniform(-2D, 2D).sample(), Uniform(-1D, 1D).sample())
+        (simplexPoint, f(simplexPoint))
+      })
+      nmOpt.minimize(f, initialSimplex, reportPerf = true)._2 match {
+        case Some(perf) =>
+          val numIters = perf.stateTrace.size.toDouble
+          DenseMatrix(numIters)
+        case _ => sys.error("No result found!")
+      }
+    }): _*)
+    val resultsN8File = new File("results/nm-conv-rate.csv")
+    csvwrite(resultsN8File, resultsN8)
+    println(s"Wrote n=8 results to $resultsN8File")
+
+    val resultsVaryN = DenseMatrix.horzcat((for {
+      n <- 3 to 30
+      _ <- 0 until 1000
+    } yield {
+      val initialSimplex = Simplex(Seq.fill(n) {
+        val simplexPoint = DenseVector(Uniform(-2D, 2D).sample(), Uniform(-1D, 1D).sample())
+        (simplexPoint, f(simplexPoint))
+      })
+      nmOpt.minimize(f, initialSimplex, reportPerf = true)._2 match {
+        case Some(perf) =>
+          val numIters = perf.stateTrace.size.toDouble
+          DenseMatrix(n.toDouble, numIters)
+        case _ => sys.error("No result found!")
+      }
+    }): _*)
+
+    val resultsVaryNFile = new File("results/nm-conv-rate-vary-n.csv")
+    csvwrite(resultsVaryNFile, resultsVaryN)
+    println(s"Wrote varying N results to $resultsVaryNFile")
   }
 
   def nmPerf(): Unit = {
