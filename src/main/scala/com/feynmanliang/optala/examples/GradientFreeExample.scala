@@ -49,20 +49,13 @@ object GradientFreeExample {
     // Genetic Algorithm Examples
 //    gaExample()
 //    gaObjEvalEff()
-    gaPerfPopSize()
+//    gaPerfPopSize()
+//    gaPerfEliteCount()
+//    gaPerfXoverFrac()
+    gaPerfSelection()
   }
 
-  def experimentWithResults(
-      experimentName: String,
-      resultFName: String) = (f: => Matrix[Double]) => {
-    println(s"=== Performing experiment: $experimentName ===")
-    val results = f()
-    val resultsFile = new File(s"results/$resultFName")
-    println(s"Writing results to: $resultsFile")
-    csvwrite(resultsFile, results)
-  }
-
-  def nmObjEvalEff(): Unit = experimentWithResults("Nelder-Mead objective evaluation efficiency", "nm-obj-eval-eff.csv") {
+  def nmObjEvalEff(): Unit = experimentWithResults("Nelder-Mead obj eval efficiency", "nm-obj-eval-eff.csv") {
     val n = 8
     val nmOpt = new NelderMeadOptimizer(maxObjectiveEvals = 1000, maxSteps = Int.MaxValue, tol = 0D)
     DenseMatrix.horzcat((for {
@@ -82,52 +75,48 @@ object GradientFreeExample {
   }
 
   def nmConvRate(): Unit = {
-    println(s"===Exploring Nelder-Mead convergence rate===")
-    val n = 8
-    val nmOpt = new NelderMeadOptimizer(maxObjectiveEvals = Int.MaxValue, maxSteps = Int.MaxValue, tol = 1E-6)
-    val resultsN8 = DenseMatrix.horzcat((for {
-      _ <- 0 until 1000
-    } yield {
-      val initialSimplex = Simplex(Seq.fill(n) {
-        val simplexPoint = DenseVector(Uniform(-2D, 2D).sample(), Uniform(-1D, 1D).sample())
-        (simplexPoint, f(simplexPoint))
-      })
-      nmOpt.minimize(f, initialSimplex, reportPerf = true)._2 match {
-        case Some(perf) =>
-          val numIters = perf.stateTrace.size.toDouble
-          DenseMatrix(numIters)
-        case _ => sys.error("No result found!")
-      }
-    }): _*)
-    val resultsN8File = new File("results/nm-conv-rate.csv")
-    csvwrite(resultsN8File, resultsN8)
-    println(s"Wrote n=8 results to $resultsN8File")
+    experimentWithResults("Nelder-Mead convergence rate, n=8", "nm-conv-rate.csv") {
+      val n = 8
+      val nmOpt = new NelderMeadOptimizer(maxObjectiveEvals = Int.MaxValue, maxSteps = Int.MaxValue, tol = 1E-6)
+      DenseMatrix.horzcat((for {
+        _ <- 0 until 1000
+      } yield {
+        val initialSimplex = Simplex(Seq.fill(n) {
+          val simplexPoint = DenseVector(Uniform(-2D, 2D).sample(), Uniform(-1D, 1D).sample())
+          (simplexPoint, f(simplexPoint))
+        })
+        nmOpt.minimize(f, initialSimplex, reportPerf = true)._2 match {
+          case Some(perf) =>
+            val numIters = perf.stateTrace.size.toDouble
+            DenseMatrix(numIters)
+          case _ => sys.error("No result found!")
+        }
+      }): _*)
+    }
 
-    val resultsVaryN = DenseMatrix.horzcat((for {
-      n <- 3 to 30
-      _ <- 0 until 1000
-    } yield {
-      val initialSimplex = Simplex(Seq.fill(n) {
-        val simplexPoint = DenseVector(Uniform(-2D, 2D).sample(), Uniform(-1D, 1D).sample())
-        (simplexPoint, f(simplexPoint))
-      })
-      nmOpt.minimize(f, initialSimplex, reportPerf = true)._2 match {
-        case Some(perf) =>
-          val numIters = perf.stateTrace.size.toDouble
-          DenseMatrix(n.toDouble, numIters)
-        case _ => sys.error("No result found!")
-      }
-    }): _*)
-
-    val resultsVaryNFile = new File("results/nm-conv-rate-vary-n.csv")
-    csvwrite(resultsVaryNFile, resultsVaryN)
-    println(s"Wrote varying N results to $resultsVaryNFile")
+    experimentWithResults("Nelder-Mead convergence rate, verying n", "nm-conv-rate-vary-n.csv") {
+      val nmOpt = new NelderMeadOptimizer(maxObjectiveEvals = Int.MaxValue, maxSteps = Int.MaxValue, tol = 1E-6)
+      DenseMatrix.horzcat((for {
+        n <- 3 to 30
+        _ <- 0 until 1000
+      } yield {
+        val initialSimplex = Simplex(Seq.fill(n) {
+          val simplexPoint = DenseVector(Uniform(-2D, 2D).sample(), Uniform(-1D, 1D).sample())
+          (simplexPoint, f(simplexPoint))
+        })
+        nmOpt.minimize(f, initialSimplex, reportPerf = true)._2 match {
+          case Some(perf) =>
+            val numIters = perf.stateTrace.size.toDouble
+            DenseMatrix(n.toDouble, numIters)
+          case _ => sys.error("No result found!")
+        }
+      }): _*)
+    }
   }
 
-  def nmPerf(): Unit = {
-    println(s"===Exploring Nelder-Mead number simplex points ==")
+  def nmPerf(): Unit = experimentWithResults(s"Nelder-Mead number simplex points", "nm-vary-n.csv") {
     val nmOpt = new NelderMeadOptimizer(maxObjectiveEvals = 1000, maxSteps = Int.MaxValue, tol = 0D)
-    val results = DenseMatrix.horzcat((for {
+    DenseMatrix.horzcat((for {
       n <- 3 to 30
       _ <- 0 until 1000
     } yield {
@@ -147,12 +136,9 @@ object GradientFreeExample {
         case _ => sys.error("No result found!")
       }
     }): _*)
-    val resultFile = new File("results/nm-vary-n.csv")
-    csvwrite(resultFile, results)
-    println(s"Wrote results to $resultFile")
   }
 
-  def nmExampleN8(): Unit = {
+  def nmExample(): Unit = {
     println(s"===Optimizing 6HCF using Nedler-Mead===")
     val nmOpt = new NelderMeadOptimizer(maxObjectiveEvals = 1000, maxSteps = Int.MaxValue, tol = 0D)
     val initialSimplex = Simplex(Seq.fill(8) {
@@ -197,7 +183,7 @@ object GradientFreeExample {
     val popSize = 20
     val eliteCount = 2
     val xoverFrac = 0.8
-    ga.minimize(f, lb, ub, popSize, TournamentSelection(0.5), eliteCount, xoverFrac, Some(seed)) match {
+    ga.minimize(f, lb, ub, popSize, StochasticUniversalSampling, eliteCount, xoverFrac, Some(seed)) match {
       case (_, Some(perf)) =>
         val xstar = perf.stateTrace.last.population.minBy(_._2)._1
         val fstar = f(xstar)
@@ -232,38 +218,33 @@ object GradientFreeExample {
     }
   }
 
-  def gaObjEvalEff(): Unit = {
-    println(s"===Exploring GA objective eval efficiency==")
+  def gaObjEvalEff(): Unit = experimentWithResults("GA obj eval efficiency", "ga-obj-eval-eff.csv"){
     val ga = new GeneticAlgorithm(maxObjectiveEvals = 1000, maxSteps = Int.MaxValue)
     val popSize = 20
     val eliteCount = 2
     val xoverFrac = 0.8
-    val results = DenseMatrix.horzcat((for {
+    DenseMatrix.horzcat((for {
       _ <- 0 until 1000
     } yield {
-      ga.minimize(f, lb, ub, popSize, TournamentSelection(0.5), eliteCount, xoverFrac, Some(seed)) match {
+      ga.minimize(f, lb, ub, popSize, StochasticUniversalSampling, eliteCount, xoverFrac, Some(seed)) match {
         case (_, Some(perf)) =>
           val numGens = perf.stateTrace.size
           DenseMatrix(numGens.toDouble)
         case _ => sys.error("No result found!")
       }
     }): _*)
-    val resultsFile = new File("results/ga-obj-eval-eff.csv")
-    csvwrite(resultsFile, results)
-    println(s"Wrote results to $resultsFile")
   }
 
-  def gaPerfPopSize(): Unit = {
-    println(s"===Exploring Nelder-Mead number simplex points ==")
+  def gaPerfPopSize(): Unit = experimentWithResults("GA population size", "ga-pop-size.csv") {
     val ga = new GeneticAlgorithm(maxObjectiveEvals = 1000, maxSteps = Int.MaxValue)
     val popSize = 20
     val eliteCount = 2
     val xoverFrac = 0.8
-    val results = DenseMatrix.horzcat((for {
-      popSize <- 3 to 30
+    DenseMatrix.horzcat((for {
+      popSize <- 3 to 50
       _ <- 0 until 1000
     } yield {
-      ga.minimize(f, lb, ub, popSize, TournamentSelection(0.5), eliteCount, xoverFrac, Some(seed)) match {
+      ga.minimize(f, lb, ub, popSize, StochasticUniversalSampling, eliteCount, xoverFrac, Some(seed)) match {
         case (_, Some(perf)) =>
           val (xStar, fStar) = perf.stateTrace.last.population.minBy(_._2)
           val distInObj = norm(fStar - fOpt)
@@ -273,8 +254,102 @@ object GradientFreeExample {
         case _ => sys.error("No result found!")
       }
     }): _*)
-    val resultFile = new File("results/nm-vary-n.csv")
-    csvwrite(resultFile, results)
-    println(s"Wrote results to $resultFile")
+  }
+
+  def gaPerfEliteCount(): Unit = experimentWithResults("GA elite count", "ga-elite-count.csv") {
+    val ga = new GeneticAlgorithm(maxObjectiveEvals = 1000, maxSteps = Int.MaxValue)
+    val popSize = 20
+    val eliteCount = 2
+    val xoverFrac = 0.8
+    DenseMatrix.horzcat((for {
+      eliteCount <- 0 until 20
+      _ <- 0 until 1000
+    } yield {
+      ga.minimize(f, lb, ub, popSize, StochasticUniversalSampling, eliteCount, xoverFrac, Some(seed)) match {
+        case (_, Some(perf)) =>
+          val (xStar, fStar) = perf.stateTrace.last.population.minBy(_._2)
+          val distInObj = norm(fStar - fOpt)
+          val closestToGlobal = xOpts.contains(localMinima.minBy(xMin => norm(xMin - xStar)))
+
+          DenseMatrix(eliteCount.toDouble, distInObj, if (closestToGlobal) 1D else 0D)
+        case _ => sys.error("No result found!")
+      }
+    }): _*)
+  }
+
+  def gaPerfXoverFrac(): Unit = experimentWithResults("GA xover frac", "ga-xover-frac.csv") {
+    val ga = new GeneticAlgorithm(maxObjectiveEvals = 1000, maxSteps = Int.MaxValue)
+    val popSize = 20
+    val eliteCount = 2
+    val xoverFrac = 0.8
+    DenseMatrix.horzcat((for {
+      xoverFrac <- 0.0 to 1.0 by 0.05
+      _ <- 0 until 1000
+    } yield {
+      ga.minimize(f, lb, ub, popSize, StochasticUniversalSampling, eliteCount, xoverFrac, Some(seed)) match {
+        case (_, Some(perf)) =>
+          val (xStar, fStar) = perf.stateTrace.last.population.minBy(_._2)
+          val distInObj = norm(fStar - fOpt)
+          val closestToGlobal = xOpts.contains(localMinima.minBy(xMin => norm(xMin - xStar)))
+
+          DenseMatrix(xoverFrac.toDouble, distInObj, if (closestToGlobal) 1D else 0D)
+        case _ => sys.error("No result found!")
+      }
+    }): _*)
+  }
+
+  def gaPerfSelection(): Unit = {
+    experimentWithResults("GA selection schemes: non-tournament", "ga-selection.csv") {
+      val ga = new GeneticAlgorithm(maxObjectiveEvals = 1000, maxSteps = Int.MaxValue)
+      val popSize = 20
+      val eliteCount = 2
+      val xoverFrac = 0.8
+
+      DenseMatrix.horzcat((for {
+        scheme <- List(FitnessProportionateSelection, StochasticUniversalSampling)
+        _ <- 0 until 1000
+      } yield {
+        ga.minimize(f, lb, ub, popSize, scheme, eliteCount, xoverFrac, Some(seed)) match {
+          case (_, Some(perf)) =>
+            val (xStar, fStar) = perf.stateTrace.last.population.minBy(_._2)
+            val distInObj = norm(fStar - fOpt)
+            val closestToGlobal = xOpts.contains(localMinima.minBy(xMin => norm(xMin - xStar)))
+
+            DenseMatrix(distInObj, if (closestToGlobal) 1D else 0D)
+          case _ => sys.error("No result found!")
+        }
+      }): _*)
+    }
+
+    experimentWithResults("GA selection schemes: tournament", "ga-selection-tournament.csv") {
+      val ga = new GeneticAlgorithm(maxObjectiveEvals = 1000, maxSteps = Int.MaxValue)
+      val popSize = 20
+      val eliteCount = 2
+      val xoverFrac = 0.8
+
+      DenseMatrix.horzcat((for {
+        tournamentProb <- 0.05 to 1.0 by 0.05
+        _ <- 0 until 1000
+      } yield {
+        ga.minimize(f, lb, ub, popSize, TournamentSelection(tournamentProb), eliteCount, xoverFrac, Some(seed)) match {
+          case (_, Some(perf)) =>
+            val (xStar, fStar) = perf.stateTrace.last.population.minBy(_._2)
+            val distInObj = norm(fStar - fOpt)
+            val closestToGlobal = xOpts.contains(localMinima.minBy(xMin => norm(xMin - xStar)))
+
+            DenseMatrix(tournamentProb.toDouble, distInObj, if (closestToGlobal) 1D else 0D)
+          case _ => sys.error("No result found!")
+        }
+      }): _*)
+    }
+  }
+
+  def experimentWithResults(
+    experimentName: String,
+    resultFName: String) = (results: Matrix[Double]) => {
+    println(s"=== Performing experiment: $experimentName ===")
+    val resultsFile = new File(s"results/$resultFName")
+    println(s"Writing results to: $resultsFile")
+    csvwrite(resultsFile, results)
   }
 }

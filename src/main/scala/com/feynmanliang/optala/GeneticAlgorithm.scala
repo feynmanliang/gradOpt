@@ -1,6 +1,7 @@
 package com.feynmanliang.optala
 
 import breeze.linalg._
+import breeze.numerics.ceil
 import breeze.stats.distributions._
 import org.apache.commons.math3.random.MersenneTwister
 
@@ -29,7 +30,9 @@ class GeneticAlgorithm(
       seed: Option[Long] = None): (Option[Vector[Double]], Option[PerfDiagnostics[Generation]]) = {
 
     implicit val randBasis: RandBasis = seed match {
-      case Some(s) => new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(s)))
+      case Some(s) =>
+        Random.setSeed(s)
+        new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(s)))
       case None => new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister()))
     }
     val fCnt = new FunctionWithCounter(f)
@@ -109,11 +112,9 @@ class GeneticAlgorithm(
       require(
         0D <= tournamentProp && tournamentProp <= 1D,
         "tournament proportion must be in [0,1] but got $tournamentProp")
-      val dist = new Bernoulli(tournamentProp, rand=implicitly)
       Seq.fill(n) {
-        pop.zip(dist.sample(pop.size))
-          .filter(_._2)
-          .map(_._1)
+        Random.shuffle(pop)
+          .take(ceil(tournamentProp*pop.size).toInt)
           .minBy(_._2) // min by negative fitness = objective value
       }
   }
