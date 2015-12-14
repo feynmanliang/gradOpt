@@ -40,10 +40,45 @@ object GradientFreeExample {
   implicit val rand = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(seed)))
 
   def main(args: Array[String]) {
-//    runNelderMead()
-    nmConvRate()
+    // Nelder-Mead Examples
+//    nmExampleN8()
+//    nmObjEvalEff()
+//    nmConvRate()
 //    nmPerf()
-//    runGA()
+
+    // Genetic Algorithm Examples
+//    gaExample()
+//    gaObjEvalEff()
+    gaPerfPopSize()
+  }
+
+  def experimentWithResults(
+      experimentName: String,
+      resultFName: String) = (f: => Matrix[Double]) => {
+    println(s"=== Performing experiment: $experimentName ===")
+    val results = f()
+    val resultsFile = new File(s"results/$resultFName")
+    println(s"Writing results to: $resultsFile")
+    csvwrite(resultsFile, results)
+  }
+
+  def nmObjEvalEff(): Unit = experimentWithResults("Nelder-Mead objective evaluation efficiency", "nm-obj-eval-eff.csv") {
+    val n = 8
+    val nmOpt = new NelderMeadOptimizer(maxObjectiveEvals = 1000, maxSteps = Int.MaxValue, tol = 0D)
+    DenseMatrix.horzcat((for {
+      _ <- 0 until 1000
+    } yield {
+      val initialSimplex = Simplex(Seq.fill(n) {
+        val simplexPoint = DenseVector(Uniform(-2D, 2D).sample(), Uniform(-1D, 1D).sample())
+        (simplexPoint, f(simplexPoint))
+      })
+      nmOpt.minimize(f, initialSimplex, reportPerf = true)._2 match {
+        case Some(perf) =>
+          val numIters = perf.stateTrace.size.toDouble
+          DenseMatrix(numIters)
+        case _ => sys.error("No result found!")
+      }
+    }): _*)
   }
 
   def nmConvRate(): Unit = {
@@ -117,7 +152,7 @@ object GradientFreeExample {
     println(s"Wrote results to $resultFile")
   }
 
-  def runNelderMead(): Unit = {
+  def nmExampleN8(): Unit = {
     println(s"===Optimizing 6HCF using Nedler-Mead===")
     val nmOpt = new NelderMeadOptimizer(maxObjectiveEvals = 1000, maxSteps = Int.MaxValue, tol = 0D)
     val initialSimplex = Simplex(Seq.fill(8) {
@@ -156,7 +191,7 @@ object GradientFreeExample {
     }
   }
 
-  def runGA(): Unit = {
+  def gaExample(): Unit = {
     println(s"===Optimizing 6HCF using GA===")
     val ga = new GeneticAlgorithm(maxObjectiveEvals = 1000, maxSteps = Int.MaxValue)
     val popSize = 20
@@ -175,11 +210,16 @@ object GradientFreeExample {
         csvwrite(stateTraceFile, stateTrace)
         println(s"Wrote stateTrace to $stateTraceFile")
 
-        // objective value at best point on simplex
-        val objTrace = DenseMatrix(perf.stateTrace.map(_.population.map(_._2).min): _*)
+        // mean population objective value
+        val meanObjTrace = DenseMatrix(perf.stateTrace.map { gen =>
+          gen.population.map(_._2).sum / gen.population.size.toDouble
+        }: _*)
+        val minObjTrace = DenseMatrix(perf.stateTrace.map { gen =>
+          gen.population.map(_._2).min
+        }: _*)
         val objTraceFile = new File("results/ga-objTrace.csv")
-        csvwrite(objTraceFile, objTrace)
-        println(s"Wrote objTrace to $objTraceFile")
+        csvwrite(objTraceFile, DenseMatrix.horzcat(meanObjTrace, minObjTrace))
+        println(s"Wrote objTraces to $objTraceFile")
 
         println(s"popSize: $popSize\n" +
           s"eliteCount: $eliteCount\n" +
@@ -192,4 +232,49 @@ object GradientFreeExample {
     }
   }
 
+  def gaObjEvalEff(): Unit = {
+    println(s"===Exploring GA objective eval efficiency==")
+    val ga = new GeneticAlgorithm(maxObjectiveEvals = 1000, maxSteps = Int.MaxValue)
+    val popSize = 20
+    val eliteCount = 2
+    val xoverFrac = 0.8
+    val results = DenseMatrix.horzcat((for {
+      _ <- 0 until 1000
+    } yield {
+      ga.minimize(f, lb, ub, popSize, TournamentSelection(0.5), eliteCount, xoverFrac, Some(seed)) match {
+        case (_, Some(perf)) =>
+          val numGens = perf.stateTrace.size
+          DenseMatrix(numGens.toDouble)
+        case _ => sys.error("No result found!")
+      }
+    }): _*)
+    val resultsFile = new File("results/ga-obj-eval-eff.csv")
+    csvwrite(resultsFile, results)
+    println(s"Wrote results to $resultsFile")
+  }
+
+  def gaPerfPopSize(): Unit = {
+    println(s"===Exploring Nelder-Mead number simplex points ==")
+    val ga = new GeneticAlgorithm(maxObjectiveEvals = 1000, maxSteps = Int.MaxValue)
+    val popSize = 20
+    val eliteCount = 2
+    val xoverFrac = 0.8
+    val results = DenseMatrix.horzcat((for {
+      popSize <- 3 to 30
+      _ <- 0 until 1000
+    } yield {
+      ga.minimize(f, lb, ub, popSize, TournamentSelection(0.5), eliteCount, xoverFrac, Some(seed)) match {
+        case (_, Some(perf)) =>
+          val (xStar, fStar) = perf.stateTrace.last.population.minBy(_._2)
+          val distInObj = norm(fStar - fOpt)
+          val closestToGlobal = xOpts.contains(localMinima.minBy(xMin => norm(xMin - xStar)))
+
+          DenseMatrix(popSize.toDouble, distInObj, if (closestToGlobal) 1D else 0D)
+        case _ => sys.error("No result found!")
+      }
+    }): _*)
+    val resultFile = new File("results/nm-vary-n.csv")
+    csvwrite(resultFile, results)
+    println(s"Wrote results to $resultFile")
+  }
 }

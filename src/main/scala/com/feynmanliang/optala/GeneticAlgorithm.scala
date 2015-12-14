@@ -34,7 +34,7 @@ class GeneticAlgorithm(
     }
     val fCnt = new FunctionWithCounter(f)
 
-    val xoverCount: Int = ((popSize - eliteCount) * xoverFrac).round.toInt
+    val xoverCount: Int = ((popSize - eliteCount) * xoverFrac).ceil.toInt
     val mutantCount: Int = popSize - eliteCount - xoverCount
     val initGen = initialize(fCnt, lb, ub, popSize)
 
