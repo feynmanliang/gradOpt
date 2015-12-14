@@ -1,12 +1,11 @@
 package com.feynmanliang.optala.examples
 
 import breeze.linalg.linspace
-import breeze.numerics.{sin, cos, pow}
-import breeze.plot.plot
-import breeze.plot.Figure
+import breeze.numerics.{cos, pow, sin}
+import breeze.plot.{Figure, plot}
 
-import com.feynmanliang.optala.GradientOptimizer
 import com.feynmanliang.optala.GradientAlgorithm._
+import com.feynmanliang.optala.GradientOptimizer
 import com.feynmanliang.optala.LineSearchConfig._
 
 object SteepestDescentExample {

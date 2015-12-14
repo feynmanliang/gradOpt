@@ -2,13 +2,13 @@ package com.feynmanliang.optala.examples
 
 import java.io.File
 
-import org.apache.commons.math3.random.MersenneTwister
-
 import breeze.linalg._
 import breeze.numerics.pow
 import breeze.stats.distributions.{RandBasis, ThreadLocalRandomGenerator, Uniform}
+import org.apache.commons.math3.random.MersenneTwister
 
 import com.feynmanliang.optala._
+import com.feynmanliang.optala.examples.ExampleUtils._
 
 object GradientFreeExample {
   // This is the 6 Hump Camel Function (6HCF)
@@ -344,14 +344,5 @@ object GradientFreeExample {
         }
       }): _*)
     }
-  }
-
-  def experimentWithResults(
-    experimentName: String,
-    resultFName: String) = (results: Matrix[Double]) => {
-    println(s"=== Performing experiment: $experimentName ===")
-    val resultsFile = new File(s"results/$resultFName")
-    println(s"Writing results to: $resultsFile")
-    csvwrite(resultsFile, results)
   }
 }

@@ -2,10 +2,17 @@ package com.feynmanliang.optala
 
 import breeze.linalg._
 import breeze.numerics._
-import breeze.plot._
+
+/**
+ * A bracketing interval where f(x + mid'*df) < f(x + lb'*df) and f(x + mid'*df) < f(x + ub'*df),
+ * ensuring a minimum is within the bracketed interval.
+ */
+private[optala] case class BracketInterval(lb: Double, mid: Double, ub: Double) {
+  def contains(x: Double): Boolean = lb <= x && ub >= x
+  def size: Double = ub - lb
+}
 
 object LineSearch {
-
   /**
   * Brackets a step size `alpha` such that for some value within the bracket
   * the restriction of `f` to the ray `f(x + alpha*p)` is guaranteed to attain
@@ -26,24 +33,21 @@ object LineSearch {
     } else {
       /** A stream of successively expanding brackets until a valid bracket is found */
       def nextBracket(currBracket: BracketInterval): Stream[BracketInterval] = currBracket match {
-        case BracketInterval(lb, mid, ub) => {
+        case BracketInterval(lb, mid, ub) =>
           val fMid = fx0 // TODO: adapt midpoint
           val flb = phi(lb)
           val fub = phi(ub)
           val newLb = if (fMid < flb) lb else lb - (mid - lb)
           val newUb = if (fMid < fub) ub else ub + (ub - mid)
           currBracket #:: nextBracket(BracketInterval(newLb, mid, newUb))
-        }
       }
 
       val initBracket = BracketInterval(-1E-2D, 0D, 1E-2D)
       nextBracket(initBracket)
-      .take(maxBracketIters)
-      .find(_ match {
-          case BracketInterval(lb, mid, ub) => {
-            val fMid = fx0 // TODO: adapt midpoint
-            phi(lb) > fMid && phi(ub) > fMid
-          }
+        .take(maxBracketIters)
+        .find({ case BracketInterval(lb, mid, ub) =>
+          val fMid = fx0 // TODO: adapt midpoint
+          phi(lb) > fMid && phi(ub) > fMid
         })
     }
   }
@@ -62,7 +66,7 @@ object LineSearch {
       c2: Double = 0.9): Option[Double] = LineSearch.bracket(f, df, x, p) match {
     case _ if norm(p.toDenseVector) < 1E-6 => Some(0D)// degenerate ray direction
     case None => None // unable to bracket
-    case Some(bracket) => {
+    case Some(bracket) =>
       val aMax: Double = bracket.ub // min guaranteed to be attained by alpha within bracket
 
       val (phi, dPhi) = restrictRay(f, df, x, p)
@@ -88,7 +92,7 @@ object LineSearch {
           else if (dPhiCurr >= 0) {
             zoom(aCurr, aPrev)
           } else {
-            chooseAlpha(aCurr, (aCurr + aMax) / 2D, false)
+            chooseAlpha(aCurr, (aCurr + aMax) / 2D, firstIter=false)
           }
         }
       }
@@ -100,7 +104,7 @@ object LineSearch {
       def zoom(alo: Double, ahi: Double): Option[Double] = {
         assert(!alo.isNaN && !ahi.isNaN)
         interpolate(alo, ahi) match {
-          case Some(aCurr) if math.abs(ahi - alo) > 1E-8 => {
+          case Some(aCurr) if math.abs(ahi - alo) > 1E-8 =>
             val phiACurr = phi(aCurr)
             if (phiACurr > phiZero + c1 * aCurr * dPhiZero || phiACurr >= phi(alo)) {
               zoom(alo, aCurr)
@@ -114,7 +118,6 @@ object LineSearch {
                 zoom(aCurr, ahi)
               }
             }
-          }
           case _ => Some((ahi + alo) / 2D)
         }
       }
@@ -131,8 +134,7 @@ object LineSearch {
         if (!res.isNaN) Some(res) else None
       }
 
-      chooseAlpha(0, aMax / 2D, true)
-    }
+      chooseAlpha(0, aMax / 2D, firstIter=true)
   }
 
   /** Restricts a vector function `f` with derivative `df` along ray `f(x + alpha * p)` */
@@ -141,7 +143,7 @@ object LineSearch {
       df: Vector[Double] => Vector[Double],
       x: Vector[Double],
       p: Vector[Double]): (Double => Double, Double => Double) = {
-    (alpha => f(x + alpha * p), alpha => df(x + alpha * p) dot (p))
+    (alpha => f(x + alpha * p), alpha => df(x + alpha * p) dot p)
   }
 
 
@@ -157,7 +159,7 @@ object LineSearch {
     if (norm(p.toDenseVector) == 0D) Some(0D) // degenerate ray
     else {
       val num = -(df.t * p)
-      val denom = (p.t * (A * p)) // assumes A is PSD
+      val denom = p.t * (A * p) // assumes A is PSD
       denom match {
         case 0 => None
         case _ => Some(num / denom)

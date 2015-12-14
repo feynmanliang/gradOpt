@@ -3,13 +3,6 @@ package com.feynmanliang.optala
 import breeze.linalg._
 import breeze.numerics._
 
-// A bracketing interval where f(x + mid'*df) < f(x + lb'*df) and f(x + mid'*df) < f(x + ub'*df),
-// guaranteeing a minimum
-private[optala] case class BracketInterval(lb: Double, mid: Double, ub: Double) {
-  def contains(x: Double): Boolean = lb <= x && ub >= x
-  def size: Double = ub - lb
-}
-
 class GradientOptimizer(
     var maxSteps: Int = 50000,
     var tol: Double = 1E-6) {
