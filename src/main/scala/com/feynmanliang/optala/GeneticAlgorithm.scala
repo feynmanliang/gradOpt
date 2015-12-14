@@ -39,7 +39,8 @@ class GeneticAlgorithm(
     val initGen = initialize(fCnt, lb, ub, popSize)
 
     val successors: Stream[Generation] = Stream.iterate(initGen) { gen =>
-      val parents = selectParents(gen.population, selectionStrategy, max(2*xoverCount, mutantCount))
+      val numParents = ((max(2*xoverCount, mutantCount)+1) / 2) * 2 // ensure even pairs for xover (TODO: improve)
+      val parents = selectParents(gen.population, selectionStrategy, numParents)
 
       val elites = gen.population.sortBy(_._2).take(eliteCount)
       val xovers = crossOver(fCnt, parents)
