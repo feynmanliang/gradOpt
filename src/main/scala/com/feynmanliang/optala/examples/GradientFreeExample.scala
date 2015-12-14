@@ -40,12 +40,16 @@ object GradientFreeExample {
   implicit val rand = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(seed)))
 
   def main(args: Array[String]) {
-//    runNelderMead
+//    runNelderMead()
+    nmPerf()
+//    runGA()
+  }
 
+  def nmPerf(): Unit = {
     println(s"===Exploring Nelder-Mead number simplex points ==")
     val nmOpt = new NelderMeadOptimizer(maxObjectiveEvals = 1000, maxSteps = Int.MaxValue, tol = 0D)
-    val results = DenseMatrix.vertcat((for {
-      n <- 3 until 20
+    val results = DenseMatrix.horzcat((for {
+      n <- 3 to 30
       _ <- 0 until 1000
     } yield {
       val initialSimplex = Simplex(Seq.fill(n) {
@@ -58,7 +62,7 @@ object GradientFreeExample {
           val xStar = sStar.points.minBy(_._2)._1
           val distToOpt = xOpts.map(xOpt => norm(xStar.toDenseVector - xOpt)).min
           val distInObj = norm(f(xStar) - fOpt)
-          val closestToGlobal = xOpts.contains(localMinima .minBy(xMin => norm(xMin - xStar)))
+          val closestToGlobal = xOpts.contains(localMinima.minBy(xMin => norm(xMin - xStar)))
 
           DenseMatrix(n.toDouble, distToOpt, distInObj, if (closestToGlobal) 1D else 0D)
         case _ => sys.error("No result found!")
@@ -67,7 +71,6 @@ object GradientFreeExample {
     val resultFile = new File("results/nm-vary-n.csv")
     csvwrite(resultFile, results)
     println(s"Wrote results to $resultFile")
-//    runGA
   }
 
   def runNelderMead(): Unit = {
@@ -91,8 +94,11 @@ object GradientFreeExample {
         csvwrite(stateTraceFile, stateTrace)
         println(s"Wrote stateTrace to $stateTraceFile")
 
-        // objective value at best point on simplex
-        val objTrace = DenseMatrix(perf.stateTrace.map(_.points.map(_._2).min): _*)
+        // objective value at simplex centroid
+        val objTrace = DenseMatrix(perf.stateTrace.map { s =>
+          val candidates = s.points.map(_._1)
+          f(candidates.reduce(_+_) / candidates.size.toDouble)
+        }: _*)
         val objTraceFile = new File("results/nm-objTrace.csv")
         csvwrite(objTraceFile, objTrace)
         println(s"Wrote objTrace to $objTraceFile")
