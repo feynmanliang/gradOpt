@@ -55,6 +55,9 @@ class GeneticAlgorithm(
     val iters = successors
       .take(maxSteps)
       .takeWhile(_ => fCnt.numCalls <= maxObjectiveEvals)
+
+    // implements "best solution archiving" by finding best solution within lazy stream up until termination
+    val bestSolution = iters.minBy(_.population.map(_._2).min)
     val perf = PerfDiagnostics(
       iters.toList,
       fCnt.numCalls,
