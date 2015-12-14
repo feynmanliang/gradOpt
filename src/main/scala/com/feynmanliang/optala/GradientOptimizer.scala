@@ -1,7 +1,6 @@
 package com.feynmanliang.optala
 
 import breeze.linalg._
-import breeze.numerics._
 
 class GradientOptimizer(
     var maxSteps: Int = 50000,
@@ -113,7 +112,7 @@ class GradientOptimizer(
     /** Computes a Stream of x values along steepest descent direction */
     def improve(x: Vector[Double]): Stream[(Vector[Double], Double)] = {
       val grad = df(x)
-      val p = -grad // steepest descent direction
+      val p = -grad / norm(grad.toDenseVector) // steepest descent direction
       lineSearch(x, p) match {
         case Some(alpha) =>
           val xnew = x + alpha * p
@@ -139,13 +138,13 @@ class GradientOptimizer(
           val newX = x + alpha * p
           val newGrad = df(newX)
           val beta = (newGrad dot newGrad) / (grad dot grad) // Fletcher-Reeves rule
-          val newP = -newGrad + beta * p
+          val newP = (-newGrad + beta * p) / norm((-newGrad + beta * p).toDenseVector)
           (x, norm(grad.toDenseVector)) #:: improve(newX, newGrad, newP)
         case None => (x, norm(grad.toDenseVector)) #:: Stream.Empty
       }
     }
-    val dfx0 = df(x0)
-    improve(x0, dfx0, -dfx0) // initialize p to be steepest descent direction
+    val dfx0 = df(x0).toDenseVector
+    improve(x0, dfx0, -dfx0 / norm(dfx0)) // initialize p to be steepest descent direction
   }
 }
 
