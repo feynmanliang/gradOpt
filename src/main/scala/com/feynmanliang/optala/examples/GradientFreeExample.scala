@@ -132,7 +132,7 @@ object GradientFreeExample {
       }): _*)
     }
 
-    experimentWithResults("Nelder-Mead convergence rate, verying n", "nm-conv-rate-vary-n.csv") {
+    experimentWithResults("Nelder-Mead convergence rate, varying n", "nm-conv-rate-vary-n.csv") {
       val nmOpt = new NelderMeadOptimizer(maxObjectiveEvals = Int.MaxValue, maxSteps = Int.MaxValue, tol = 1E-6)
       DenseMatrix.horzcat((for {
         n <- 3 to 30
@@ -166,10 +166,11 @@ object GradientFreeExample {
         case Some(perf) =>
           val sStar = perf.stateTrace.last
           val xStar = sStar.points.minBy(_._2)._1
-          val distInObj = norm(f(xStar) - fOpt)
+          val fStar = f(xStar)
+          val bias = fStar - fOpt
           val closestToGlobal = xOpts.contains(localMinima.minBy(xMin => norm(xMin - xStar)))
 
-          DenseMatrix(n.toDouble, distInObj, if (closestToGlobal) 1D else 0D)
+          DenseMatrix(n.toDouble, fStar, bias, if (closestToGlobal) 1D else 0D)
         case _ => sys.error("No result found!")
       }
     }): _*)
@@ -245,10 +246,10 @@ object GradientFreeExample {
       ga.minimize(f, lb, ub, popSize, StochasticUniversalSampling, eliteCount, xoverFrac, Some(seed)) match {
         case (_, Some(perf)) =>
           val (xStar, fStar) = perf.stateTrace.last.population.minBy(_._2)
-          val distInObj = norm(fStar - fOpt)
+          val bias = fStar - fOpt
           val closestToGlobal = xOpts.contains(localMinima.minBy(xMin => norm(xMin - xStar)))
 
-          DenseMatrix(popSize.toDouble, distInObj, if (closestToGlobal) 1D else 0D)
+          DenseMatrix(popSize.toDouble, fStar, bias, if (closestToGlobal) 1D else 0D)
         case _ => sys.error("No result found!")
       }
     }): _*)
@@ -266,10 +267,10 @@ object GradientFreeExample {
       ga.minimize(f, lb, ub, popSize, StochasticUniversalSampling, eliteCount, xoverFrac, Some(seed)) match {
         case (_, Some(perf)) =>
           val (xStar, fStar) = perf.stateTrace.last.population.minBy(_._2)
-          val distInObj = norm(fStar - fOpt)
+          val bias = fStar - fOpt
           val closestToGlobal = xOpts.contains(localMinima.minBy(xMin => norm(xMin - xStar)))
 
-          DenseMatrix(eliteCount.toDouble, distInObj, if (closestToGlobal) 1D else 0D)
+          DenseMatrix(eliteCount.toDouble, fStar, bias, if (closestToGlobal) 1D else 0D)
         case _ => sys.error("No result found!")
       }
     }): _*)
@@ -287,10 +288,10 @@ object GradientFreeExample {
       ga.minimize(f, lb, ub, popSize, StochasticUniversalSampling, eliteCount, xoverFrac, Some(seed)) match {
         case (_, Some(perf)) =>
           val (xStar, fStar) = perf.stateTrace.last.population.minBy(_._2)
-          val distInObj = norm(fStar - fOpt)
+          val bias = fStar - fOpt
           val closestToGlobal = xOpts.contains(localMinima.minBy(xMin => norm(xMin - xStar)))
 
-          DenseMatrix(xoverFrac.toDouble, distInObj, if (closestToGlobal) 1D else 0D)
+          DenseMatrix(xoverFrac.toDouble, fStar, bias, if (closestToGlobal) 1D else 0D)
         case _ => sys.error("No result found!")
       }
     }): _*)
@@ -312,11 +313,11 @@ object GradientFreeExample {
         ga.minimize(f, lb, ub, popSize, scheme, eliteCount, xoverFrac, Some(seed)) match {
           case (_, Some(perf)) =>
             val (xStar, fStar) = perf.stateTrace.last.population.minBy(_._2)
-            val distInObj = norm(fStar - fOpt)
+            val bias = fStar - fOpt
             val closestToGlobal = xOpts.contains(localMinima.minBy(xMin => norm(xMin - xStar)))
 
 
-            DenseMatrix(i.toDouble, distInObj, if (closestToGlobal) 1D else 0D)
+            DenseMatrix(i.toDouble, fStar, bias, if (closestToGlobal) 1D else 0D)
           case _ => sys.error("No result found!")
         }
       }): _*)
@@ -335,10 +336,10 @@ object GradientFreeExample {
         ga.minimize(f, lb, ub, popSize, TournamentSelection(tournamentProb), eliteCount, xoverFrac, Some(seed)) match {
           case (_, Some(perf)) =>
             val (xStar, fStar) = perf.stateTrace.last.population.minBy(_._2)
-            val distInObj = norm(fStar - fOpt)
+            val bias = fStar - fOpt
             val closestToGlobal = xOpts.contains(localMinima.minBy(xMin => norm(xMin - xStar)))
 
-            DenseMatrix(tournamentProb.toDouble, distInObj, if (closestToGlobal) 1D else 0D)
+            DenseMatrix(tournamentProb.toDouble, fStar, bias, if (closestToGlobal) 1D else 0D)
           case _ => sys.error("No result found!")
         }
       }): _*)
