@@ -55,27 +55,27 @@ class NelderMeadOptimizer(
       .takeWhile(_ => fCnt.numCalls <= maxObjectiveEvals)
       .take(maxSteps)
       .map(s => (s, (s.points.map(_._1).reduce(_+_) / s.points.size.toDouble).toDenseVector))
-      .iterator
+
+    val algorithmTrace = xValues
+      .sliding(2)
+      .takeWhile(x => norm(x(1)._2 - x.head._2) >= tol)
+      .map(_(1))
 
     if (reportPerf) {
-      val xValuesSeq = xValues.toSeq
-      val res = xValuesSeq.sliding(2).find(x => norm(x(1)._2 - x.head._2) < tol).map(_(1))
-      val trace = res match {
-        case Some(xStar) => xValuesSeq
-          .sliding(2)
-          .takeWhile(x => norm(x(1)._2 - x.head._2) >= tol)
-          .map(_(0)._1)
-          .toSeq :+ xStar._1
-        case None => xValuesSeq
-          .sliding(2)
-          .takeWhile(x => norm(x(1)._2 - x.head._2) >= tol)
-          .map(_(0)._1)
-      }
-      val perf = PerfDiagnostics(trace.toList, fCnt.numCalls, 0)
-      (res.map(s => s._1.points.map(_._1).reduce(_+_) / (1D * s._1.points.size)), Some(perf))
+      val fullTrace = xValues.head +: algorithmTrace.toSeq
+      val bestPoint = fullTrace
+        .minBy(_._1.points.map(_._2).min) // implicit archiving over lazy stream, find best solution seen
+        ._1
+        .points.minBy(_._2)
+        ._1
+      val perf = PerfDiagnostics(fullTrace.map(_._1).toList, fCnt.numCalls, 0)
+      (Some(bestPoint), Some(perf))
     } else {
-      val res = xValues.sliding(2).find(x => norm(x(1)._2 - x.head._2) < tol).map(_(1))
-      (res.map(s => s._1.points.map(_._1).reduce(_+_) / (1D * s._1.points.size)), None)
+      val bestPoint = algorithmTrace
+        .minBy(_._1.points.map(_._2).min) // implicit archiving over lazy stream, find best solution seen
+        ._1
+        .points.minBy(_._2)._1
+      (Some(bestPoint), None)
     }
   }
 
