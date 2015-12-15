@@ -3,86 +3,137 @@ package com.feynmanliang.optala
 import breeze.linalg._
 import breeze.numerics._
 
+/**
+  * A bracketing interval where f(x + mid'*df) < f(x + lb'*df) and f(x + mid'*df) < f(x + ub'*df),
+  * ensuring a minimum is within the bracketed interval.
+  */
+private[optala] case class BracketInterval(lb: Double,mid: Double, ub: Double) {
+  def contains(x: Double): Boolean = lb <= x && ub >= x
+  def size: Double = ub - lb
+}
+
 object LineSearch {
-  val aMax = 50D
   val tol = 1E-16
 
   /**
-    * Performs a line search for x' = x + a*p within a bracketing interval to determine step size.
-    * Returns the value x' which minimizes `f` along the line search. The chosen step size
-    * satisfies the Strong Wolfe Conditions.
-    */
+  * Brackets a step size `alpha` such that for some value within the bracket
+  * the restriction of `f` to the ray `f(x + alpha*p)` is guaranteed to attain
+  * a minimum.
+  */
+  private[optala] def bracket(
+      f: Vector[Double] => Double,
+      df: Vector[Double] => Vector[Double],
+      x: Vector[Double],
+      p: Vector[Double],
+      maxBracketIters: Int = 5000): Option[BracketInterval] = {
+    val (phi, dPhi) = restrictRay(f, df, x, p)
+    val fx0 = phi(0)
+    val dfx0 = dPhi(0)
+
+    val initBracket = BracketInterval(-1E-8, 0D, 1E-8)
+    if (norm(dfx0) == 0.0D) {
+      Some(initBracket)
+    } else {
+      /** A stream of successively expanding brackets until a valid bracket is found */
+      def nextBracket(currBracket: BracketInterval): Stream[BracketInterval] = currBracket match {
+        case BracketInterval(lb, mid, ub) =>
+          val fMid = fx0
+          val flb = phi(lb)
+          val fub = phi(ub)
+          val newLb = if (fMid < flb) lb else lb - (mid - lb)
+          val newUb = if (fMid < fub) ub else ub + (ub - mid)
+          currBracket #:: nextBracket(BracketInterval(newLb, mid, newUb))
+      }
+      nextBracket(initBracket)
+        .take(maxBracketIters)
+        .find({ case BracketInterval(lb, mid, ub) =>
+          val fMid = fx0
+          phi(lb) > fMid && phi(ub) > fMid
+        })
+//      GoldenSection.bracket(f, df, x, p)
+    }
+  }
+
+  /**
+  * Performs a line search for x' = x + a*p within a bracketing interval to determine step size.
+  * Returns the value `x` which minimizes `f` along the line search. The chosen step size
+  * satisfies the Strong Wolfe Conditions.
+  */
   def chooseStepSize(
       f: Vector[Double] => Double,
       df: Vector[Double] => Vector[Double],
       x: Vector[Double],
       p: Vector[Double],
       c1: Double = 1E-4,
-      c2: Double = 0.9): Option[Double] = {
-    val (phi, dPhi) = restrictRay(f, df, x, p)
-    val phiZero = phi(0)
-    val dPhiZero = dPhi(0)
+      c2: Double = 0.9): Option[Double] = LineSearch.bracket(f, df, x, p) match {
+    case _ if norm(p.toDenseVector) < tol => Some(0D) // degenerate ray direction
+    case None => None // unable to bracket
+    case Some(bracket) => {
+      val aMax = bracket.size
+      val (phi, dPhi) = restrictRay(f, df, x + bracket.lb*p, p)
+      val phiZero = phi(0)
+      val dPhiZero = dPhi(0)
 
-    /**
-      * Nocedal Algorithm 3.5, finds a step length alpha while ensures that
-      * (aPrev, aCurr) contains a point satisfying the Strong Wolfe Conditions at
-      * each iteration.
-      */
-    def bracket(aPrev: Double, phiPrev: Double, aCurr: Double, firstIter: Boolean): Option[Double] = {
-      val phiCurr = phi(aCurr)
+      /**
+        * Nocedal Algorithm 3.5, finds a step length alpha while ensures that
+        * (aPrev, aCurr) contains a point satisfying the Strong Wolfe Conditions at
+        * each iteration.
+        */
+      def findAlpha(aPrev: Double, phiPrev: Double, aCurr: Double, firstIter: Boolean): Option[Double] = {
+        val phiCurr = phi(aCurr)
 
-      if (phiCurr > phiZero + c1 * aCurr * dPhiZero || (phiCurr >= phiPrev && !firstIter)) {
-        zoom(aPrev, aCurr)
-      } else {
-        val dPhiCurr = dPhi(aCurr)
-        if (math.abs(dPhiCurr) <= -1 * c2 * dPhiZero) {
-          Some(aCurr)
-        } else if (dPhiCurr >= 0) {
-          zoom(aCurr, aPrev)
+        if (phiCurr > phiZero + c1 * aCurr * dPhiZero || (phiCurr >= phiPrev && !firstIter)) {
+          zoom(aPrev, aCurr)
         } else {
-          bracket(aCurr, phiCurr, (aCurr + aMax) / 2D, firstIter=false)
+          val dPhiCurr = dPhi(aCurr)
+          if (math.abs(dPhiCurr) <= -1 * c2 * dPhiZero) {
+            Some(aCurr)
+          } else if (dPhiCurr >= 0) {
+            zoom(aCurr, aPrev)
+          } else {
+            findAlpha(aCurr, phiCurr, (aCurr + aMax) / 2D, firstIter = false)
+          }
         }
       }
-    }
 
-    /**
-      * Nocedal Algorithm 3.6, generates \alpha_j between \alpha_{lo} and \alpha_{hi} and replaces
-      * one of the two endpoints while ensuring Wolfe conditions hold.
-      */
-    def zoom(aLo: Double, aHi: Double): Option[Double] = {
-      assert(!aLo.isNaN && !aHi.isNaN)
-      interpolate(aLo, aHi) match {
-        case Some(aCurr) if math.abs(aHi - aLo) > tol =>
-          val phiACurr = phi(aCurr)
-          if (phiACurr > phiZero + c1 * aCurr * dPhiZero || phiACurr >= phi(aLo)) {
-            zoom(aLo, aCurr)
-          } else {
-            val dPhiCurr = dPhi(aCurr)
-            if (math.abs(dPhiCurr) <= -c2 * dPhiZero) {
-              Some(aCurr)
-            } else if (dPhiCurr * (aHi - aLo) >= 0) {
-              zoom(aCurr, aLo)
+      /**
+        * Nocedal Algorithm 3.6, generates \alpha_j between \alpha_{lo} and \alpha_{hi} and replaces
+        * one of the two endpoints while ensuring Wolfe conditions hold.
+        */
+      def zoom(aLo: Double, aHi: Double): Option[Double] = {
+        assert(!aLo.isNaN && !aHi.isNaN)
+        interpolate(aLo, aHi) match {
+          case Some(aCurr) if math.abs(aHi - aLo) > tol =>
+            val phiACurr = phi(aCurr)
+            if (phiACurr > phiZero + c1 * aCurr * dPhiZero || phiACurr >= phi(aLo)) {
+              zoom(aLo, aCurr)
             } else {
-              zoom(aCurr, aHi)
+              val dPhiCurr = dPhi(aCurr)
+              if (math.abs(dPhiCurr) <= -c2 * dPhiZero) {
+                Some(aCurr)
+              } else if (dPhiCurr * (aHi - aLo) >= 0) {
+                zoom(aCurr, aLo)
+              } else {
+                zoom(aCurr, aHi)
+              }
             }
-          }
-        case _ => Some((aHi + aLo) / 2D)
+          case _ => Some((aHi + aLo) / 2D)
+        }
       }
+
+      /**
+        * Finds the minimizer of the Cubic interpolation of the line search
+        * objective \phi(\alpha) between [alpha_{i-1}, alpha_i]. See Nocedal (3.59).
+        **/
+      def interpolate(prev: Double, curr: Double): Option[Double] = {
+        val d1 = dPhi(prev) + dPhi(curr) - 3D * (phi(prev) - phi(curr)) / (prev - curr)
+        val d2 = signum(curr - prev) * sqrt(pow(d1, 2) - dPhi(prev) * dPhi(curr))
+        val res = curr - (curr - prev) * (dPhi(curr) + d2 - d1) / (dPhi(curr) - dPhi(prev) + 2D * d2)
+
+        if (!res.isNaN) Some(res) else None
+      }
+      findAlpha(0, phiZero, aMax*1E-2, firstIter = true).map(_ - bracket.lb)
     }
-
-    /**
-      * Finds the minimizer of the Cubic interpolation of the line search
-      * objective \phi(\alpha) between [alpha_{i-1}, alpha_i]. See Nocedal (3.59).
-      **/
-    def interpolate(prev: Double, curr: Double): Option[Double] = {
-      val d1 = dPhi(prev) + dPhi(curr) - 3D * (phi(prev) - phi(curr)) / (prev - curr)
-      val d2 = signum(curr - prev) * sqrt(pow(d1, 2) - dPhi(prev) * dPhi(curr))
-      val res = curr - (curr - prev) * (dPhi(curr) + d2 - d1) / (dPhi(curr) - dPhi(prev) + 2D * d2)
-
-      if (!res.isNaN) Some(res) else None
-    }
-
-    bracket(0, phiZero, aMax*1E-8, firstIter = true)
   }
 
   /** Restricts a vector function `f` with derivative `df` along ray `f(x + alpha * p)` */

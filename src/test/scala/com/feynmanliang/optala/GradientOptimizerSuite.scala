@@ -22,8 +22,8 @@ class GradientOptimizerSuite extends FunSpec {
   }
 
   describe("minimize") {
-    val tol = 1E-5 // tolerance for norm(x* - xOpt)
-    val opt = new GradientOptimizer(maxSteps=30000, tol=1E-6)
+    val tol = 1E-3 // tolerance for norm(x* - xOpt)
+    val opt = new GradientOptimizer(maxSteps=30000, tol=1E-4)
 
     for {
       gradientAlgorithm <- List(SteepestDescent, ConjugateGradient)
@@ -71,6 +71,7 @@ class GradientOptimizerSuite extends FunSpec {
         for {
           x0 <- xInits
         } describe(s"when initialized at $x0") {
+          println(opt.minimize(f, df, x0, gradientAlgorithm, CubicInterpolation, reportPerf = true))
           opt.minimize(f, df, x0, gradientAlgorithm, CubicInterpolation, reportPerf = true) match {
             case (Some(xStar), Some(perf)) =>
               val numIters = perf.stateTrace.size
@@ -86,7 +87,7 @@ class GradientOptimizerSuite extends FunSpec {
               it(s"should be within $tol to $xOpt") {
                 assert(norm((xStar - xOpt).toDenseVector) < tol)
               }
-            case _ => fail("Minimize failed to return answer or perf diagnostics")
+            case _ => fail(s"$gradientAlgorithm failed to return answer or perf diagnostics on $name")
           }
         }
       }

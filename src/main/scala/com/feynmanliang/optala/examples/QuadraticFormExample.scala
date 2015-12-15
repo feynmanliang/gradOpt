@@ -12,9 +12,9 @@ object QuadraticFormExample {
   def main(args: Array[String]) {
     val gradOpt = new GradientOptimizer(maxSteps = 1000, tol = 1E-6)
     for {
-      lsAlgo <- List(Exact, CubicInterpolation)
       optAlgo <- List(SteepestDescent, ConjugateGradient)
       fname <- List("A10", "A100", "A1000", "B10", "B100", "B1000")
+      lsAlgo <- List(Exact, CubicInterpolation)
     } {
       val A: DenseMatrix[Double] = csvread(new File(getClass.getResource("/" + fname + ".csv").getFile))
       assert(A.rows == A.cols, "A must be symmetric")
