@@ -11,7 +11,7 @@ object SteepestDescentExample {
     val f = (x: Double) => pow(x, 4) * cos(pow(x, -1)) + 2D * pow(x, 4)
     val df = (x: Double) => 8D * pow(x, 3) + 4D * pow(x, 3) * cos(pow(x, -1)) - pow(x, 4) * sin(pow(x, -1))
 
-    val gradOpt = new GradientOptimizer(maxSteps = 10000, tol = 1E-8)
+    val gradOpt = new GradientOptimizer(maxSteps = 10000, tol = 1E-6)
     for {
       x0 <- List[Double](-50, -10, -5, -1, -0.1, -1E-2, -1E-3, -1E-4, -1E-5, 1E-5, 1E-4, 1E-3, 1E-2, 0.1, 1, 5, 10, 50)
     } {

@@ -117,7 +117,7 @@ class GradientOptimizerSuite extends FunSpec {
                   }
                   lineAlgo match {
                     case CubicInterpolation => it(s"should have evaluated f >= $numIters times") {
-                      assert(perf.numObjEval > numIters)
+                      assert(perf.numObjEval >= numIters)
                     }
                     case Exact => it(s"should not have evaluated f") {
                       assert(perf.numObjEval == 0)
@@ -129,7 +129,7 @@ class GradientOptimizerSuite extends FunSpec {
                   it(s"should be within $tol to $xOpt") {
                     assert(norm((xStar - xOpt).toDenseVector) < tol)
                   }
-                case _ => fail("Minimize failed to return answer or perf diagnostics")
+                case _ => fail(s"$gradAlgo with $lineAlgo failed to return answer or perf diagnostics")
               }
             }
           }

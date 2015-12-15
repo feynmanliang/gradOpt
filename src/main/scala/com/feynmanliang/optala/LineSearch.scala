@@ -14,6 +14,7 @@ private[optala] case class BracketInterval(
     fLb: Double,
     fMid: Double,
     fUb: Double) {
+  require(lb <= mid && mid <= ub, s"bracket did not satisfy $lb <= $mid <= $ub")
   def contains(x: Double): Boolean = lb <= x && ub >= x
   def size: Double = ub - lb
   def bracketsMin: Boolean = fLb >= fMid && fMid <= fUb
@@ -25,29 +26,31 @@ object BracketInterval {
 }
 
 object LineSearch {
-  val tol = 1E-16
+  private val GOLD = 1.61803398875
+  private val EPS_MIN = 1E-16
 
   /**
-  * Brackets a step size `alpha` such that for some value within the bracket
-  * the restriction of `f` to the ray `f(x + alpha*p)` is guaranteed to attain
-  * a minimum.
-  */
+    * Brackets a step size `alpha` such that for some value within the bracket
+    * the restriction of `f` to the ray `f(x + alpha*p)` is guaranteed to attain
+    * a minimum.
+    */
   private[optala] def bracket(
       f: Vector[Double] => Double,
       df: Vector[Double] => Vector[Double],
       x: Vector[Double],
       p: Vector[Double],
+      initialBracketRange: Double = 1D,
       maxBracketIters: Int = 5000): Option[BracketInterval] = {
     val (phi, dPhi) = restrictRay(f, df, x, p)
-
-    val initBracket = BracketInterval(phi, -1E-8, 0D, 1E-8)
+//    val initBracket = BracketInterval(phi, -1E-8, 0D, 1E-8)
+    val initBracket = BracketInterval(phi, 0, initialBracketRange, (1 + GOLD) * initialBracketRange)
     if (norm(dPhi(0)) == 0.0D) {
       Some(initBracket)
     } else {
       /** A stream of successively expanding brackets until a valid bracket is found */
       def nextBracket(currBracket: BracketInterval): Stream[BracketInterval] = currBracket match {
         case BracketInterval(lb, mid, ub, fLb, fMid, fUb) =>
-          val newLb = if (fMid < fLb) lb else lb - (mid - lb)
+          val newLb = if (fMid < fLb) lb else lb + (lb - mid)
           val newUb = if (fMid < fUb) ub else ub + (ub - mid)
           currBracket #:: nextBracket(BracketInterval(phi, newLb, mid, newUb))
       }
@@ -68,12 +71,16 @@ object LineSearch {
       x: Vector[Double],
       p: Vector[Double],
       c1: Double = 1E-4,
-      c2: Double = 0.9): Option[Double] = LineSearch.bracket(f, df, x, p) match {
-    case _ if norm(p.toDenseVector) < tol => Some(0D) // degenerate ray direction
-    case None => None // unable to bracket
+      c2: Double = 0.9,
+      aMax: Double = 50D): Option[Double] = LineSearch.bracket(f, df, x, p) match {
+    case _ if norm(p.toDenseVector) < EPS_MIN => Some(0D) // degenerate ray direction
+    case None => None // unable to bracket a minimum
     case Some(bracket) =>
       val aMax = bracket.size
-      val (phi, dPhi) = restrictRay(f, df, x + bracket.lb*p, p)
+      val initialBracketRatio = 1E-8 // ratio of aMax first Wolfe Condition bracket should be
+
+//      val (phi, dPhi) = restrictRay(f, df, x + bracket.lb*p, p)
+      val (phi, dPhi) = restrictRay(f, df, x, p)
       val phiZero = phi(0)
       val dPhiZero = dPhi(0)
 
@@ -83,18 +90,22 @@ object LineSearch {
         * each iteration.
         */
       def findAlpha(aPrev: Double, phiPrev: Double, aCurr: Double, firstIter: Boolean): Option[Double] = {
-        val phiCurr = phi(aCurr)
-
-        if (phiCurr > phiZero + c1 * aCurr * dPhiZero || (phiCurr >= phiPrev && !firstIter)) {
-          zoom(aPrev, aCurr)
+        if (aCurr > aMax) {
+          Some(aMax)
         } else {
-          val dPhiCurr = dPhi(aCurr)
-          if (math.abs(dPhiCurr) <= -1 * c2 * dPhiZero) {
-            Some(aCurr)
-          } else if (dPhiCurr >= 0) {
-            zoom(aCurr, aPrev)
+          val phiCurr = phi(aCurr)
+          if (phiCurr > phiZero + c1 * aCurr * dPhiZero || (phiCurr >= phiPrev && !firstIter)) {
+            zoom(aPrev, aCurr)
           } else {
-            findAlpha(aCurr, phiCurr, (aCurr + aMax) / 2D, firstIter = false)
+            val dPhiCurr = dPhi(aCurr)
+            if (math.abs(dPhiCurr) <= -1 * c2 * dPhiZero) {
+              Some(aCurr)
+            } else if (dPhiCurr >= 0) {
+              zoom(aCurr, aPrev)
+            } else {
+              //            findAlpha(aCurr, phiCurr, (aCurr + aMax) / 2D, firstIter = false)
+              findAlpha(aCurr, phiCurr, 2 * aCurr, firstIter = false)
+            }
           }
         }
       }
@@ -105,8 +116,10 @@ object LineSearch {
         */
       def zoom(aLo: Double, aHi: Double): Option[Double] = {
         assert(!aLo.isNaN && !aHi.isNaN)
-        interpolate(aLo, aHi) match {
-          case Some(aCurr) if math.abs(aHi - aLo) > tol =>
+        interpolate(aLo, aHi) match { // cubic interpolation
+//        Some((aLo + aHi) / 2) match { // bisection search
+          case Some(aCurr) if aCurr >= aMax => Some(aMax)
+          case Some(aCurr) if math.abs(aHi - aLo) > EPS_MIN =>
             val phiACurr = phi(aCurr)
             if (phiACurr > phiZero + c1 * aCurr * dPhiZero || phiACurr >= phi(aLo)) {
               zoom(aLo, aCurr)
@@ -135,11 +148,11 @@ object LineSearch {
 
         if (!res.isNaN) Some(res) else None
       }
-      findAlpha(0, phiZero, aMax*1E-2, firstIter = true).map(_ - bracket.lb)
+      findAlpha(0, phiZero, aMax*initialBracketRatio, firstIter = true)
   }
 
   /** Restricts a vector function `f` with derivative `df` along ray `f(x + alpha * p)` */
-  private def restrictRay(
+  private[optala] def restrictRay(
       f: Vector[Double] => Double,
       df: Vector[Double] => Vector[Double],
       x: Vector[Double],

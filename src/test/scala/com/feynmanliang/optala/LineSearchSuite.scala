@@ -18,8 +18,7 @@ class LineSearchSuite extends FunSpec {
             val dfx0 = df(x0)
             val p = -dfx0 / norm(dfx0.toDenseVector)
             LineSearch.bracket(f, df, x0, p) match {
-              case Some(BracketInterval(lb, mid, ub)) =>
-                assert(f(x0 + lb*p) >= f(x0 + mid*p) && f(x0 + mid*p) <= f(x0 + ub*p))
+              case Some(b) => assert(b.bracketsMin)
               case _ => fail("No bracket interval returned!")
             }
           }
