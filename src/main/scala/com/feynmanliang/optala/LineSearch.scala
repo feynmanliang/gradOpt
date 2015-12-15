@@ -102,8 +102,8 @@ object LineSearch {
             } else if (dPhiCurr >= 0) {
               zoom(aCurr, aPrev)
             } else {
-              //            findAlpha(aCurr, phiCurr, (aCurr + aMax) / 2D, firstIter = false)
-              findAlpha(aCurr, phiCurr, 2 * aCurr, firstIter = false)
+              findAlpha(aCurr, phiCurr, (aCurr + aMax) / 2D, firstIter = false)
+//              findAlpha(aCurr, phiCurr, 2 * aCurr, firstIter = false)
             }
           }
         }
