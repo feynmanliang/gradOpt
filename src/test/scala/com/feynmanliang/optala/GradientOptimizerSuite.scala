@@ -129,7 +129,7 @@ class GradientOptimizerSuite extends FunSpec {
                   it(s"should be within $tol to $xOpt") {
                     assert(norm((xStar - xOpt).toDenseVector) < tol)
                   }
-                case _ => fail(s"$gradAlgo with $lineAlgo failed to return answer or perf diagnostics")
+                case x => fail(s"$gradAlgo with $lineAlgo failed to return answer or perf diagnostics on quadForm")
               }
             }
           }

@@ -27,7 +27,7 @@ object BracketInterval {
 
 object LineSearch {
   private val GOLD = 1.61803398875
-  private val EPS_MIN = 1E-16
+  private val EPS_MIN = 1E-20
 
   /**
     * Brackets a step size `alpha` such that for some value within the bracket
@@ -77,7 +77,7 @@ object LineSearch {
     case None => None // unable to bracket a minimum
     case Some(bracket) =>
       val aMax = bracket.size
-      val initialBracketRatio = 1E-8 // ratio of aMax first Wolfe Condition bracket should be
+      val initialBracketRatio = EPS_MIN // ratio of aMax first Wolfe Condition bracket should be
 
       val (phi, dPhi) = restrictRay(f, df, x, p)
       val phiZero = phi(0)
@@ -102,8 +102,7 @@ object LineSearch {
             } else if (dPhiCurr >= 0) {
               zoom(aCurr, aPrev)
             } else {
-              findAlpha(aCurr, phiCurr, (aCurr + aMax) / 2D, firstIter = false)
-//              findAlpha(aCurr, phiCurr, 2 * aCurr, firstIter = false)
+              findAlpha(aCurr, phiCurr, (aCurr + aMax)*1.1 / 2D, firstIter = false)
             }
           }
         }
@@ -147,7 +146,7 @@ object LineSearch {
 
         if (!res.isNaN) Some(res) else None
       }
-      findAlpha(0, phiZero, aMax*initialBracketRatio, firstIter = true)
+      findAlpha(0, phiZero, initialBracketRatio, firstIter = true)
   }
 
   /** Restricts a vector function `f` with derivative `df` along ray `f(x + alpha * p)` */

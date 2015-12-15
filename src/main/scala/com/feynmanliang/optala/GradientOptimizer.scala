@@ -112,7 +112,7 @@ class GradientOptimizer(
       if (norm(grad.toDenseVector) == 0D) {
         (x, norm(grad.toDenseVector)) #:: Stream.Empty
       } else {
-        val p = -grad // steepest descent direction
+        val p = -grad / norm(grad.toDenseVector) // steepest descent direction
         lineSearch(x, p) match {
           case Some(alpha) =>
             val xnew = x + alpha * p
