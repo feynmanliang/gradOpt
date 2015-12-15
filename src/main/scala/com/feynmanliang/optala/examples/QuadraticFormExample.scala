@@ -16,8 +16,7 @@ object QuadraticFormExample {
     } yield {
       println(s"====$optAlgo=====")
       for {
-//        fname <- List("A10", "A100", "A1000", "B10", "B100", "B1000")
-        fname <- List("B10", "B100")
+        fname <- List("A10", "A100", "A1000", "B10", "B100", "B1000")
         lsAlgo <- List(Exact, CubicInterpolation)
       } yield {
         val A: DenseMatrix[Double] = csvread(new File(getClass.getResource("/" + fname + ".csv").getFile))
