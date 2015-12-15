@@ -30,7 +30,7 @@ object MultivariateGradientOptimizerExample {
         gradOpt.minimize(f, df, x0, algo, CubicInterpolation, reportPerf = true) match {
           case (_, Some(perf)) =>
             println(f"$algo & ${perf.stateTrace.size} & ${perf.numObjEval} & ${perf.numGradEval}" +
-              f" & ${perf.stateTrace.last._1(0)}%.3E & ${perf.stateTrace.last._2}%.3E\\\\")
+              f" & ${f(perf.stateTrace.last._1)}%.3E & ${perf.stateTrace.last._2}%.3E\\\\")
             DenseMatrix.horzcat(perf.stateTrace.map(x => DenseMatrix(x._2 +: x._1.toArray: _*)): _*)
           case _ => sys.error(s"No results for x0=$x0!!!")
         }

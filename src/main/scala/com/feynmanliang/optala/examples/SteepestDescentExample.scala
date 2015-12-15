@@ -18,7 +18,7 @@ object SteepestDescentExample {
       gradOpt.minimize(f, df, x0, SteepestDescent, CubicInterpolation, reportPerf = true) match {
         case (_, Some(perf)) =>
           println(f"$x0 & ${perf.stateTrace.size} & ${perf.numObjEval} & ${perf.numGradEval}" +
-            f" & ${perf.stateTrace.last._1(0)}%.3E & ${perf.stateTrace.last._2}%.3E\\\\")
+            f" & ${f(perf.stateTrace.last._1(0))}%.3E & ${perf.stateTrace.last._2}%.3E\\\\")
           DenseMatrix(x0 +: perf.stateTrace.flatMap(_._1.toArray):_*)
         case _ => sys.error(s"No results for x0=$x0!!!")
       }

@@ -64,7 +64,7 @@ class GradientOptimizer(
 
   /**
   * Minimize a convex function `f` with derivative `df` and initial
-  * guess `x0`. Uses steepest-descent.
+  * guess `x0`.
   */
   def minimize(
       f: Vector[Double] => Double,

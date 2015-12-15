@@ -10,7 +10,7 @@ import com.feynmanliang.optala.LineSearchConfig._
 
 object QuadraticFormExample {
   def main(args: Array[String]) {
-    val gradOpt = new GradientOptimizer(maxSteps = 10000, tol = 1E-6)
+    val gradOpt = new GradientOptimizer(maxSteps = 1000, tol = 1E-6)
     for {
       lsAlgo <- List(Exact, CubicInterpolation)
       optAlgo <- List(SteepestDescent, ConjugateGradient)
