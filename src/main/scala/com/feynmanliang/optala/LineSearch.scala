@@ -39,7 +39,7 @@ object LineSearch {
       df: Vector[Double] => Vector[Double],
       x: Vector[Double],
       p: Vector[Double],
-      initialBracketRange: Double = 1D,
+      initialBracketRange: Double = 100D,
       maxBracketIters: Int = 5000): Option[BracketInterval] = {
     val (phi, dPhi) = restrictRay(f, df, x, p)
 //    val initBracket = BracketInterval(phi, -1E-8, 0D, 1E-8)
@@ -71,13 +71,12 @@ object LineSearch {
       x: Vector[Double],
       p: Vector[Double],
       c1: Double = 1E-4,
-      c2: Double = 0.9,
-      aMax: Double = 50D): Option[Double] = LineSearch.bracket(f, df, x, p) match {
+      c2: Double = 0.9): Option[Double] = LineSearch.bracket(f, df, x, p) match {
     case _ if norm(p.toDenseVector) < EPS_MIN => Some(0D) // degenerate ray direction
     case None => None // unable to bracket a minimum
     case Some(bracket) =>
       val aMax = bracket.size
-      val initialBracketRatio = EPS_MIN // ratio of aMax first Wolfe Condition bracket should be
+      val initAlphaBracketSize = EPS_MIN // initial size for bracketing of alpha satisfying Strong Wolfe Conditions
 
       val (phi, dPhi) = restrictRay(f, df, x, p)
       val phiZero = phi(0)
@@ -146,7 +145,7 @@ object LineSearch {
 
         if (!res.isNaN) Some(res) else None
       }
-      findAlpha(0, phiZero, initialBracketRatio, firstIter = true)
+      findAlpha(0, phiZero, initAlphaBracketSize, firstIter = true)
   }
 
   /** Restricts a vector function `f` with derivative `df` along ray `f(x + alpha * p)` */
