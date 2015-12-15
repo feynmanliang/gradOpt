@@ -79,7 +79,6 @@ object LineSearch {
       val aMax = bracket.size
       val initialBracketRatio = 1E-8 // ratio of aMax first Wolfe Condition bracket should be
 
-//      val (phi, dPhi) = restrictRay(f, df, x + bracket.lb*p, p)
       val (phi, dPhi) = restrictRay(f, df, x, p)
       val phiZero = phi(0)
       val dPhiZero = dPhi(0)
