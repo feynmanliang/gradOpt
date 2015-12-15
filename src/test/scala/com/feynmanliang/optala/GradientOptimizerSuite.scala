@@ -71,7 +71,6 @@ class GradientOptimizerSuite extends FunSpec {
         for {
           x0 <- xInits
         } describe(s"when initialized at $x0") {
-          println(opt.minimize(f, df, x0, gradientAlgorithm, CubicInterpolation, reportPerf = true))
           opt.minimize(f, df, x0, gradientAlgorithm, CubicInterpolation, reportPerf = true) match {
             case (Some(xStar), Some(perf)) =>
               val numIters = perf.stateTrace.size
