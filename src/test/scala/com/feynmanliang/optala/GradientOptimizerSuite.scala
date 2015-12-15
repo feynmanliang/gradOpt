@@ -22,8 +22,8 @@ class GradientOptimizerSuite extends FunSpec {
   }
 
   describe("minimize") {
-    val tol = 1E-3 // tolerance for norm(x* - xOpt)
-    val opt = new GradientOptimizer(maxSteps=30000, tol=1E-4)
+    val tol = 1E-5 // tolerance for norm(x* - xOpt)
+    val opt = new GradientOptimizer(maxSteps=30000, tol=1E-6)
 
     for {
       gradientAlgorithm <- List(SteepestDescent, ConjugateGradient)
