@@ -52,7 +52,7 @@ object LineSearch {
     def zoom(aLo: Double, aHi: Double): Option[Double] = {
       assert(!aLo.isNaN && !aHi.isNaN)
       interpolate(aLo, aHi) match {
-        case Some(aCurr) if math.abs(aHi - aLo) > 0D =>
+        case Some(aCurr) if math.abs(aHi - aLo) > tol =>
           val phiACurr = phi(aCurr)
           if (phiACurr > phiZero + c1 * aCurr * dPhiZero || phiACurr >= phi(aLo)) {
             zoom(aLo, aCurr)
@@ -87,23 +87,22 @@ object LineSearch {
 
   /** Restricts a vector function `f` with derivative `df` along ray `f(x + alpha * p)` */
   private def restrictRay(
-    f: Vector[Double] => Double,
-    df: Vector[Double] => Vector[Double],
-    x: Vector[Double],
-    p: Vector[Double]): (Double => Double, Double => Double) = {
+      f: Vector[Double] => Double,
+      df: Vector[Double] => Vector[Double],
+      x: Vector[Double],
+      p: Vector[Double]): (Double => Double, Double => Double) = {
     (alpha => f(x + alpha * p), alpha => df(x + alpha * p) dot p)
   }
 
 
   /**
     * Computes the exact step size alpha required to minimize a quadratic form.
-    * See Nocedal (3.55).
     */
   def exactLineSearch(
-    A: Matrix[Double],
-    df: Vector[Double],
-    x: Vector[Double],
-    p: Vector[Double]): Option[Double] = {
+      A: Matrix[Double],
+      df: Vector[Double],
+      x: Vector[Double],
+      p: Vector[Double]): Option[Double] = {
     if (norm(p.toDenseVector) == 0D) Some(0D) // degenerate ray
     else {
       val num = -(df.t * p)
@@ -115,6 +114,3 @@ object LineSearch {
     }
   }
 }
-
-
-// vim: set ts=2 sw=2 et sts=2:

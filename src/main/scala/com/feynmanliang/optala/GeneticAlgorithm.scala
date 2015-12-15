@@ -13,9 +13,8 @@ case class Generation(population: Seq[(Vector[Double],Double)]) {
 }
 
 class GeneticAlgorithm(
-  var maxObjectiveEvals: Int = Int.MaxValue,
-  var maxSteps: Int = 1000
-) {
+    var maxObjectiveEvals: Int = Int.MaxValue,
+    var maxSteps: Int = 1000) {
   /**
   *  Minimizes `f` subject to decision variables inside hypercube defined by `lb` and `ub`.
   **/
@@ -28,7 +27,6 @@ class GeneticAlgorithm(
       eliteCount: Int = 2,
       xoverFrac: Double = 0.8,
       seed: Option[Long] = None): (Option[Vector[Double]], Option[PerfDiagnostics[Generation]]) = {
-
     implicit val randBasis: RandBasis = seed match {
       case Some(s) =>
         Random.setSeed(s)

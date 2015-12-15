@@ -10,27 +10,27 @@ import com.feynmanliang.optala.LineSearchConfig._
 
 object QuadraticFormExample {
   def main(args: Array[String]) {
-    val gradOpt = new GradientOptimizer(maxSteps = 101, tol = 1E-4)
+    val gradOpt = new GradientOptimizer(maxSteps = 10000, tol = 1E-6)
     for {
-      lsAlgo <- List(Exact, CubicInterpolation)
-      fname <- List("A10.csv", "A100.csv", "A1000.csv", "B10.csv", "B100.csv", "B1000.csv")
+//      lsAlgo <- List(Exact, CubicInterpolation)
+      lsAlgo <- List(Exact)
       optAlgo <- List(SteepestDescent, ConjugateGradient)
+//      fname <- List("A10", "A100", "A1000", "B10", "B100", "B1000")
+      fname <- List("A10")
     } {
-      val A: DenseMatrix[Double] = csvread(new File(getClass.getResource("/" + fname).getFile))
+      val A: DenseMatrix[Double] = csvread(new File(getClass.getResource("/" + fname + ".csv").getFile))
       assert(A.rows == A.cols, "A must be symmetric")
       val n: Int = A.cols
       val b: DenseVector[Double] = 2D * (DenseVector.rand(n) - DenseVector.fill(n) {
         0.5
       })
 
-      println(s"lsAlgo:$lsAlgo,fname:$fname,optAlgo:$optAlgo")
       gradOpt.minQuadraticForm(A, b, DenseVector.zeros(n), optAlgo, lsAlgo, reportPerf = true) match {
         case (res, Some(perf)) =>
-          println(s"normGrad:${perf.stateTrace.last._2},numSteps:${perf.stateTrace.length}," +
-            s"fEval:${perf.numObjEval},dfEval:${perf.numGradEval}")
+          println(s"$lsAlgo & $optAlgo & $fname & ${perf.stateTrace.size} & ${perf.numObjEval} & ${perf.numGradEval}" +
+            f" & ${perf.stateTrace.last._1(0)}%.3E & ${perf.stateTrace.last._2}%.3E\\\\")
         case _ => throw new Exception("Minimize failed to return perf diagnostics")
       }
     }
   }
-
 }
