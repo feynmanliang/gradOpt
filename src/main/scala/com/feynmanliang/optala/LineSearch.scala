@@ -7,9 +7,21 @@ import breeze.numerics._
   * A bracketing interval where f(x + mid'*df) < f(x + lb'*df) and f(x + mid'*df) < f(x + ub'*df),
   * ensuring a minimum is within the bracketed interval.
   */
-private[optala] case class BracketInterval(lb: Double,mid: Double, ub: Double) {
+private[optala] case class BracketInterval(
+    lb: Double,
+    mid: Double,
+    ub: Double,
+    fLb: Double,
+    fMid: Double,
+    fUb: Double) {
   def contains(x: Double): Boolean = lb <= x && ub >= x
   def size: Double = ub - lb
+  def bracketsMin: Boolean = fLb >= fMid && fMid <= fUb
+}
+
+object BracketInterval {
+  def apply(phi: Double => Double, lb: Double, mid: Double, ub: Double): BracketInterval =
+    BracketInterval(lb, mid, ub, phi(lb), phi(mid), phi(ub))
 }
 
 object LineSearch {
@@ -27,30 +39,21 @@ object LineSearch {
       p: Vector[Double],
       maxBracketIters: Int = 5000): Option[BracketInterval] = {
     val (phi, dPhi) = restrictRay(f, df, x, p)
-    val fx0 = phi(0)
-    val dfx0 = dPhi(0)
 
-    val initBracket = BracketInterval(-1E-8, 0D, 1E-8)
-    if (norm(dfx0) == 0.0D) {
+    val initBracket = BracketInterval(phi, -1E-8, 0D, 1E-8)
+    if (norm(dPhi(0)) == 0.0D) {
       Some(initBracket)
     } else {
       /** A stream of successively expanding brackets until a valid bracket is found */
       def nextBracket(currBracket: BracketInterval): Stream[BracketInterval] = currBracket match {
-        case BracketInterval(lb, mid, ub) =>
-          val fMid = fx0
-          val flb = phi(lb)
-          val fub = phi(ub)
-          val newLb = if (fMid < flb) lb else lb - (mid - lb)
-          val newUb = if (fMid < fub) ub else ub + (ub - mid)
-          currBracket #:: nextBracket(BracketInterval(newLb, mid, newUb))
+        case BracketInterval(lb, mid, ub, fLb, fMid, fUb) =>
+          val newLb = if (fMid < fLb) lb else lb - (mid - lb)
+          val newUb = if (fMid < fUb) ub else ub + (ub - mid)
+          currBracket #:: nextBracket(BracketInterval(phi, newLb, mid, newUb))
       }
       nextBracket(initBracket)
         .take(maxBracketIters)
-        .find({ case BracketInterval(lb, mid, ub) =>
-          val fMid = fx0
-          phi(lb) > fMid && phi(ub) > fMid
-        })
-//      GoldenSection.bracket(f, df, x, p)
+        .find(_.bracketsMin)
     }
   }
 
@@ -68,7 +71,7 @@ object LineSearch {
       c2: Double = 0.9): Option[Double] = LineSearch.bracket(f, df, x, p) match {
     case _ if norm(p.toDenseVector) < tol => Some(0D) // degenerate ray direction
     case None => None // unable to bracket
-    case Some(bracket) => {
+    case Some(bracket) =>
       val aMax = bracket.size
       val (phi, dPhi) = restrictRay(f, df, x + bracket.lb*p, p)
       val phiZero = phi(0)
@@ -133,7 +136,6 @@ object LineSearch {
         if (!res.isNaN) Some(res) else None
       }
       findAlpha(0, phiZero, aMax*1E-2, firstIter = true).map(_ - bracket.lb)
-    }
   }
 
   /** Restricts a vector function `f` with derivative `df` along ray `f(x + alpha * p)` */
