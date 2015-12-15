@@ -16,7 +16,6 @@ class GradientOptimizer(
       gradientAlgorithm: GradientAlgorithm.GradientAlgorithm,
       lineSearchConfig: LineSearchConfig.LineSearchConfig,
       reportPerf: Boolean): (Option[Vector[Double]], Option[PerfDiagnostics[(Vector[Double], Double)]]) = {
-
     val fCnt = new FunctionWithCounter[Vector[Double], Double](x => 0.5D * (x.t * (A * x)) - b.t * x)
     val dfCnt = new FunctionWithCounter[Vector[Double], Vector[Double]](x => A * x - b)
 
@@ -42,7 +41,6 @@ class GradientOptimizer(
       val res = xValues.find(_._2 < tol).map(_._1)
       (res, None)
     }
-
   }
 
   // Overload which vectorizes scalar-valued functions.
@@ -75,7 +73,6 @@ class GradientOptimizer(
       gradientAlgorithm: GradientAlgorithm,
       lineSearchConfig: LineSearchConfig,
       reportPerf: Boolean): (Option[Vector[Double]], Option[PerfDiagnostics[(Vector[Double], Double)]]) = {
-
     val fCnt = new FunctionWithCounter(f)
     val dfCnt = new FunctionWithCounter(df)
 
@@ -138,7 +135,7 @@ class GradientOptimizer(
           val newX = x + alpha * p
           val newGrad = df(newX)
           val beta = (newGrad dot newGrad) / (grad dot grad) // Fletcher-Reeves rule
-          val newP = (-newGrad + beta * p) / norm((-newGrad + beta * p).toDenseVector)
+          val newP = -newGrad + beta * p
           (x, norm(grad.toDenseVector)) #:: improve(newX, newGrad, newP)
         case None => (x, norm(grad.toDenseVector)) #:: Stream.Empty
       }
