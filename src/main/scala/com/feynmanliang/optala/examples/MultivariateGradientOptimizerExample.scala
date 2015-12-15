@@ -24,7 +24,7 @@ object MultivariateGradientOptimizerExample {
     val xOpt = (-1D, 1D)
     val x0 = DenseVector(-3D, -4D)
 
-    val gradOpt = new GradientOptimizer(maxSteps = 5000, tol = 1E-3)
+    val gradOpt = new GradientOptimizer(maxSteps = 10000, tol = 1E-6)
     for (algo <- List(SteepestDescent, ConjugateGradient)) {
       ExampleUtils.experimentWithResults(s"optimizing Rosenbrock function using $algo", s"rosenbrock-$algo.csv") {
         gradOpt.minimize(f, df, x0, algo, CubicInterpolation, reportPerf = true) match {
@@ -37,7 +37,7 @@ object MultivariateGradientOptimizerExample {
       }
     }
 
-    val nmOpt = new NelderMeadOptimizer(maxSteps = 5000, tol = 1E-10)
+    val nmOpt = new NelderMeadOptimizer(maxSteps = 10000, tol = 1E-10)
     val initialSimplex = Simplex(Seq.fill(8) {
       val simplexPoint = DenseVector(Uniform(-5D, -1D).sample(), Uniform(-6D, -2D).sample())
       (simplexPoint, f(simplexPoint))

@@ -4,7 +4,7 @@ import breeze.linalg._
 import breeze.numerics._
 
 object LineSearch {
-  val aMax = 1D
+  val aMax = 100D
   val tol = 1E-16
 
   /**
@@ -82,7 +82,7 @@ object LineSearch {
       if (!res.isNaN) Some(res) else None
     }
 
-    bracket(0, phiZero, aMax / 2D, firstIter = true)
+    bracket(0, phiZero, aMax * 1E-6, firstIter = true)
   }
 
   /** Restricts a vector function `f` with derivative `df` along ray `f(x + alpha * p)` */
