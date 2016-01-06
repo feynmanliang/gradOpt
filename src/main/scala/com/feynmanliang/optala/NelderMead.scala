@@ -84,39 +84,45 @@ class NelderMeadOptimizer(
     NelderMeadRunResult(trace.toList, fCnt.numCalls, 0)
   }
 
+  /** Yields a lazy `Stream` of simplices updated according to iterations of the Nelder-Mead algorithm.
+    *
+    * @param f objective function
+    * @param simplex initial simplex
+    */
   private def nelderMead(
-    f: Vector[Double] => Double,
-    simplex: Simplex): Stream[Simplex] = {
+      f: Vector[Double] => Double,
+      simplex: Simplex): Stream[Simplex] = {
     val x1toN = simplex.sortedSolutions.init
     val x1 = simplex.sortedSolutions.head
     val xN = x1toN.last
     val xNplus1 = simplex.sortedSolutions.last
-
     val xRefl = Solution(f, simplex.xBar(-1D))
+
     if (x1.objVal <= xRefl.objVal && xRefl.objVal < xN.objVal) {
-      // reflected point neither best nor xnp1
+      // replace
       simplex #:: nelderMead(f, Simplex(x1toN :+ xRefl))
     } else if (xRefl.objVal < x1.objVal) {
-      // reflected point is best, go further
-      val xRefl2 = Solution(f, simplex.xBar(-2D))
+      val xRefl2 = Solution(f, simplex.xBar(-2D)) // try an expansion (pattern move)
       if (xRefl2.objVal < xRefl.objVal) {
+        // expand (pattern move)
         simplex #:: nelderMead(f, Simplex(x1toN :+ xRefl2))
       } else {
+        // replace
         simplex #:: nelderMead(f, Simplex(x1toN :+ xRefl))
       }
     } else {
-      // reflected point worse than x_n, contract
+      // contract
       val xReflOut = Solution(f, simplex.xBar(-.5D))
       if (xN.objVal <= xRefl.objVal && xRefl.objVal < xNplus1.objVal && xReflOut.objVal <= xRefl.objVal) {
-        // try ``outside'' contraction
+        // outside contraction
         simplex #:: nelderMead(f, Simplex(x1toN :+ xReflOut))
       } else{
         val xReflIn = Solution(f, simplex.xBar(.5D))
         if (xReflIn.objVal < xNplus1.objVal) {
-          // try ``inside'' contraction
+          // inside contraction
           simplex #:: nelderMead(f, Simplex(x1toN :+ xReflIn))
         } else {
-          // neither outside nor inside contraction acceptable, shrink simplex towards x1
+          // shrink
           simplex #:: nelderMead(f, Simplex(simplex.sortedSolutions.map { x =>
             val newX = .5D * (x1.point + x.point)
             Solution(f, newX)

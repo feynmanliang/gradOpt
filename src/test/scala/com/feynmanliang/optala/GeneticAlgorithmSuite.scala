@@ -58,7 +58,7 @@ class GeneticAlgorithmSuite extends FunSpec {
 
     describe("crossover") {
       val init = ga.initialize(f, lb, ub, popSize)
-      val parentPairs = init.population.grouped(2).map(x => (x(0), x(1))).toSeq
+      val parentPairs = init.population.grouped(2).map(x => (x.head, x(1))).toSeq
 
       it("halves the number of parents") {
         assert(ga.crossOver(f, parentPairs).size === init.population.size / 2)

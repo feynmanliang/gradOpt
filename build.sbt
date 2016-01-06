@@ -17,7 +17,7 @@ lazy val publishSonatypeOSSRH = Seq(
   pomIncludeRepository := { _ => false }, // remove repos for optional dependencies
   licenses := Seq("MIT" -> url("http://www.opensource.org/licenses/MIT")),
   homepage := Some(url("https://github.com/feynmanliang/optala")),
-	pomExtra := (
+	pomExtra :=
 		<scm>
 			<url>git@github.com:feynmanliang/optala.git</url>
 			<connection>scm:git:git@github.com:feynmanliang/optala.git</connection>
@@ -28,7 +28,7 @@ lazy val publishSonatypeOSSRH = Seq(
 				<name>Feynman Liang</name>
 				<url>http://feynmanliang.com</url>
 			</developer>
-		</developers>)
+		</developers>
 )
 
 lazy val root = (project in file(".")).

@@ -76,7 +76,7 @@ class GeneticAlgorithm(
       val parents = selectParents(gen.population, selectionStrategy, numParents)
 
       val elites = gen.population.sortBy(_.objVal).take(eliteCount)
-      val parentPairs = parents.grouped(2).map(x => (x(0), x(1))).toSeq
+      val parentPairs = parents.grouped(2).map(x => (x.head, x(1))).toSeq
       val xovers = crossOver(fCnt, parentPairs)
       val mutants = mutate(fCnt, lb, ub, parents, mutantCount)
 
