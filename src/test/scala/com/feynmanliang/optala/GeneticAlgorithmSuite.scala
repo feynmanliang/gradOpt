@@ -29,7 +29,7 @@ class GeneticAlgorithmSuite extends FunSpec {
         assert(init.population.size === popSize)
       }
       it("respects the bounds") {
-        assert(init.population.map(_._1).forall(x => all((lb :<= x) :& (x :<= ub))))
+        assert(init.population.map(_.point).forall(x => all((lb :<= x) :& (x :<= ub))))
       }
     }
 
@@ -48,11 +48,9 @@ class GeneticAlgorithmSuite extends FunSpec {
             assert(parents.toSet.size <= (parents.size + 1) / 2)
           }
           it("selects individuals with higher than average fitness") {
-            // TODO: use random seeds to fix flakiness
             val selected = ga.selectParents(init.population, strategy, popSize*2)
-            val selectedAvgFitness = selected.map(_._2).sum / selected.size.toDouble
-            val genAvgFitness = -1D*init.meanNegFitness()
-            assert(selectedAvgFitness >= genAvgFitness)
+            val selectedAvgFitness = selected.map(_.fitness).sum / selected.size.toDouble
+            assert(selectedAvgFitness >= init.averageFitness)
           }
         }
       }
@@ -80,25 +78,22 @@ class GeneticAlgorithmSuite extends FunSpec {
         assert(mutants.toSet.size === mutants.size)
       }
       it("stays within bounds") {
-        assert(mutants.map(_._1).forall(x => all((lb :<= x) :& (x :<= ub))))
+        assert(mutants.map(_.point).forall(x => all((lb :<= x) :& (x :<= ub))))
       }
     }
 
     describe("when run on six-hump camelback function (6HCF)") {
-      ga.minimize(f, lb, ub, popSize=popSize, eliteCount=2, xoverFrac=0.8, seed=Some(seed)) match {
-        case (_, Some(perf)) =>
-          it("monotonically decreases the best point's objective") {
-            assert(perf.stateTrace.map(_.bestIndividual()._2).sliding(2).forall(x => x.head >= x(1)))
-          }
-          it("decreases average objective value over all population") {
-            val avgObjTrace = perf.stateTrace.map(_.meanNegFitness())
-            assert(avgObjTrace.take(10).sum >= avgObjTrace.takeRight(10).sum)
-          }
-          it(s"terminates after evaluating objective function $maxObjEvals times") {
-            // assumes each iteration evaluates objective less that 0.2*maxObjectiveEvals
-            assert(perf.numObjEval <= (maxObjEvals*1.2).toInt)
-          }
-        case _ => fail("error")
+      val result = ga.minimize(f, lb, ub, popSize=popSize, eliteCount=2, xoverFrac=0.8, seed=Some(seed))
+      it("monotonically decreases the best point's objective") {
+        assert(result.stateTrace.map(_.bestPoint.objVal).sliding(2).forall(x => x.head >= x(1)))
+      }
+      it("decreases average objective value over all population") {
+        val avgObjTrace = result.stateTrace.map(_.averageObjVal)
+        assert(avgObjTrace.take(10).sum >= avgObjTrace.takeRight(10).sum)
+      }
+      it(s"terminates after evaluating objective function $maxObjEvals times") {
+        // assumes each iteration evaluates objective less that 0.2*maxObjectiveEvals
+        assert(result.numObjEval <= (maxObjEvals*1.2).toInt)
       }
     }
   }

@@ -2,6 +2,20 @@ package com.feynmanliang.optala
 
 import breeze.linalg._
 
+
+private[optala] case class GradientBasedSolution(
+    override val point: DenseVector[Double],
+    override val f: Vector[Double] => Double,
+    grad: DenseVector[Double],
+    normGrad: Double) extends Solution(f, point)
+
+private[optala] case class GradientBasedRunResult (
+    override val stateTrace: List[GradientBasedSolution],
+    override val numObjEval: Long,
+    override val numGradEval: Long) extends RunResult[GradientBasedSolution] {
+  override val bestSolution = stateTrace.maxBy(_.objVal)
+}
+
 class GradientOptimizer(
     var maxSteps: Int = 50000,
     var tol: Double = 1E-6) {
@@ -15,7 +29,7 @@ class GradientOptimizer(
       x0: Vector[Double],
       gradientAlgorithm: GradientAlgorithm.GradientAlgorithm,
       lineSearchConfig: LineSearchConfig.LineSearchConfig,
-      reportPerf: Boolean): (Option[Vector[Double]], Option[OptimizationResult[(Vector[Double], Double)]]) = {
+      reportPerf: Boolean): (Option[Vector[Double]], Option[GradientBasedRunResult]) = {
     val fCnt = new FunctionWithCounter[Vector[Double], Double](x => 0.5D * (x.t * (A * x)) - b.t * x)
     val dfCnt = new FunctionWithCounter[Vector[Double], Vector[Double]](x => A * x - b)
 
@@ -24,21 +38,21 @@ class GradientOptimizer(
       case CubicInterpolation => (x, p) => LineSearch.chooseStepSize(fCnt, dfCnt, x, p)
     }
     val xValues = (gradientAlgorithm match {
-      case SteepestDescent => steepestDescent(lineSearch, dfCnt, x0)
-      case ConjugateGradient => conjugateGradient(lineSearch, dfCnt, x0)
+      case SteepestDescent => steepestDescent(lineSearch, fCnt, dfCnt, x0.toDenseVector)
+      case ConjugateGradient => conjugateGradient(lineSearch, fCnt, dfCnt, x0.toDenseVector)
     }).take(maxSteps).iterator
 
     if (reportPerf) {
       val xValuesSeq = xValues.toSeq
-      val res = xValuesSeq.find(_._2 < tol)
+      val res = xValuesSeq.find(_.normGrad < tol)
       val trace = res match {
-        case Some(xStar) => xValuesSeq.takeWhile(_._2 >= tol) :+ xStar
-        case None => xValuesSeq.takeWhile(_._2 >= tol)
+        case Some(xStar) => xValuesSeq.takeWhile(_.normGrad >= tol) :+ xStar
+        case None => xValuesSeq.takeWhile(_.normGrad >= tol)
       }
-      val perf = OptimizationResult(trace.toList, fCnt.numCalls, dfCnt.numCalls)
-      (res.map(_._1), Some(perf))
+      val result = GradientBasedRunResult(trace.toList, fCnt.numCalls, dfCnt.numCalls)
+      (res.map(_.point), Some(result))
     } else {
-      val res = xValues.find(_._2 < tol).map(_._1)
+      val res = xValues.find(_.normGrad < tol).map(_.point)
       (res, None)
     }
   }
@@ -50,7 +64,7 @@ class GradientOptimizer(
       x0: Double,
       gradientAlgorithm: GradientAlgorithm.GradientAlgorithm,
       lineSearchConfig: LineSearchConfig.LineSearchConfig,
-      reportPerf: Boolean): (Option[Vector[Double]], Option[OptimizationResult[(Vector[Double], Double)]]) = {
+      reportPerf: Boolean): (Option[Vector[Double]], Option[GradientBasedRunResult]) = {
     val vecF: Vector[Double] => Double = v => {
       require(v.size == 1, s"vectorized f expected dimension 1 input but got ${v.size}")
       f(v(0))
@@ -72,7 +86,7 @@ class GradientOptimizer(
       x0: Vector[Double],
       gradientAlgorithm: GradientAlgorithm,
       lineSearchConfig: LineSearchConfig,
-      reportPerf: Boolean): (Option[Vector[Double]], Option[OptimizationResult[(Vector[Double], Double)]]) = {
+      reportPerf: Boolean): (Option[Vector[Double]], Option[GradientBasedRunResult]) = {
     val fCnt = new FunctionWithCounter(f)
     val dfCnt = new FunctionWithCounter(df)
 
@@ -81,22 +95,22 @@ class GradientOptimizer(
     }
 
     val xValues = (gradientAlgorithm match {
-      case SteepestDescent => steepestDescent(lineSearch, dfCnt, x0)
-      case ConjugateGradient => conjugateGradient(lineSearch, dfCnt, x0)
+      case SteepestDescent => steepestDescent(lineSearch, fCnt, dfCnt, x0.toDenseVector)
+      case ConjugateGradient => conjugateGradient(lineSearch, fCnt, dfCnt, x0.toDenseVector)
     }).take(maxSteps).iterator
 
 
     if (reportPerf) {
       val xValuesSeq = xValues.toSeq
-      val res = xValuesSeq.find(_._2 < tol)
+      val res = xValuesSeq.find(_.normGrad < tol)
       val trace = res  match {
-        case Some(xStar) => xValuesSeq.takeWhile(_._2 >= tol) :+ xStar
-        case None => xValuesSeq.takeWhile(_._2 >= tol)
+        case Some(xStar) => xValuesSeq.takeWhile(_.normGrad >= tol) :+ xStar
+        case None => xValuesSeq.takeWhile(_.normGrad >= tol)
       }
-      val perf = OptimizationResult(trace.toList, fCnt.numCalls, dfCnt.numCalls)
-      (res.map(_._1), Some(perf))
+      val perf = GradientBasedRunResult(trace.toList, fCnt.numCalls, dfCnt.numCalls)
+      (res.map(_.point), Some(perf))
     } else {
-      val res = xValues.find(_._2 < tol).map(_._1)
+      val res = xValues.find(_.normGrad < tol).map(_.point)
       (res, None)
     }
   }
@@ -104,20 +118,20 @@ class GradientOptimizer(
   /** Steepest Descent */
   private def steepestDescent(
       lineSearch: (Vector[Double], Vector[Double]) => Option[Double],
+      f: Vector[Double] => Double,
       df: Vector[Double] => Vector[Double],
-      x0: Vector[Double]): Stream[(Vector[Double], Double)] = {
+      x0: DenseVector[Double]): Stream[GradientBasedSolution] = {
     /** Computes a Stream of x values along steepest descent direction */
-    def improve(x: Vector[Double]): Stream[(Vector[Double], Double)] = {
-      val grad = df(x)
-      if (norm(grad.toDenseVector) == 0D) {
-        (x, norm(grad.toDenseVector)) #:: Stream.Empty
+    def improve(x: DenseVector[Double]): Stream[GradientBasedSolution] = {
+      val grad = df(x).toDenseVector
+      val currSolution = GradientBasedSolution(x, f, grad, norm(grad))
+      if (currSolution.normGrad == 0D) {
+        currSolution #:: Stream.Empty
       } else {
         val p = -grad / norm(grad.toDenseVector) // steepest descent direction
         lineSearch(x, p) match {
-          case Some(alpha) =>
-            val xnew = x + alpha * p
-            (x, norm(grad.toDenseVector)) #:: improve(xnew)
-          case None => (x, norm(grad.toDenseVector)) #:: Stream.Empty
+          case Some(alpha) => currSolution #:: improve(x + alpha * p)
+          case None => currSolution #:: Stream.Empty
         }
       }
     }
@@ -127,28 +141,30 @@ class GradientOptimizer(
   /** Conjugate Gradient using Fletcher-Reeves rule. */
   private def conjugateGradient(
       lineSearch: (Vector[Double], Vector[Double]) => Option[Double],
+      f: Vector[Double] => Double,
       df: Vector[Double] => Vector[Double],
-      x0: Vector[Double]): Stream[(Vector[Double], Double)] = {
+      x0: DenseVector[Double]): Stream[GradientBasedSolution] = {
     /** Compute a Stream of x values using CG minimizing `f`. */
     def improve(
-        x: Vector[Double],
-        grad: Vector[Double],
-        p: Vector[Double]): Stream[(Vector[Double], Double)] = {
-      if (norm(grad.toDenseVector) == 0) {
-        (x, norm(grad.toDenseVector)) #:: Stream.Empty
+        x: DenseVector[Double],
+        grad: DenseVector[Double],
+        p: DenseVector[Double]): Stream[GradientBasedSolution] = {
+      val currSolution = GradientBasedSolution(x, f, grad, norm(grad))
+      if (currSolution.normGrad == 0) {
+        currSolution #:: Stream.Empty
       } else {
         lineSearch(x, p) match {
           case Some(alpha) =>
             val newX = x + alpha * p
-            val newGrad = df(newX)
-            val beta = (newGrad dot newGrad) / (grad dot grad) // Fletcher-Reeves rule
+            val newGrad = df(newX).toDenseVector
+            val beta = (newGrad dot newGrad) / (grad dot grad)
             val newP = -newGrad + beta * p
-            (x, norm(grad.toDenseVector)) #:: improve(newX, newGrad, newP)
-          case None => (x, norm(grad.toDenseVector)) #:: Stream.Empty
+            currSolution #:: improve(newX, newGrad, newP)
+          case None => currSolution #:: Stream.Empty
         }
       }
     }
-    val dfx0 = df(x0)
+    val dfx0 = df(x0).toDenseVector
     improve(x0, dfx0, -dfx0)
   }
 }

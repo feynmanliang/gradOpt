@@ -1,16 +1,23 @@
 package com.feynmanliang.optala
 
-/** The results from a run of an iterative optimization algorithm along with performance diagnostic information.
-  *
-  * @param stateTrace sequence of states across iterations
-  * @param numObjEval number of objective function evaluations until termination
-  * @param numGradEval number of gradient evaluations until termination
-  * @tparam T the type for the algorithm's states
-  */
-private[optala] case class OptimizationResult[T](
-    stateTrace: List[T],
-    numObjEval: Long,
-    numGradEval: Long)
+import breeze.linalg.{DenseVector, Vector}
+
+/** A point in a vector space and the value of the objective function evaluated at that point*/
+private[optala] class Solution(val f: (Vector[Double]) => Double, val point: DenseVector[Double]) {
+  lazy val objVal: Double = f(point)
+}
+
+private[optala] object Solution {
+  def apply(f: (Vector[Double]) => Double, point: DenseVector[Double]): Solution = new Solution(f, point)
+}
+
+/** The results from a run of an iterative optimization algorithm along with performance diagnostic information. */
+trait RunResult[T] {
+  val bestSolution: Solution // (solution, objectiveValue) of best solution found
+  val stateTrace: List[T] // sequence of states across iterations
+  val numObjEval: Long // number of objective function evaluations until termination
+  val numGradEval: Long // number of gradient evaluations until termination
+}
 
 /**
   * Wrapper for a function which counts the number of times it is called.

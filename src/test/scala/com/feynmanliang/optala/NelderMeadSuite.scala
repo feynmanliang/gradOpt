@@ -20,7 +20,7 @@ class NelderMeadSuite extends FunSpec {
         val init = Simplex(List(
           DenseVector(-1D, .1D),
           DenseVector(-.1D, -3D),
-          DenseVector(-2D, 7D)).map(x => CachedPoint(x, f(x))))
+          DenseVector(-2D, 7D)).map(x => Solution(f, x)))
         val result = nm.minimize(f, init)
         val numIters = result.stateTrace.size
         it("should have at least one iteration") {
@@ -33,7 +33,7 @@ class NelderMeadSuite extends FunSpec {
           assert(result.numGradEval == 0)
         }
         it(s"should be within $tol to $xOpt") {
-          val xStar = result.stateTrace.last.bestPoint.point
+          val xStar = result.stateTrace.last.bestSolution.point
           assert(norm((xStar - xOpt).toDenseVector) < tol)
         }
         it(s"should monotonically decrease average function value (since obj is convex)") {

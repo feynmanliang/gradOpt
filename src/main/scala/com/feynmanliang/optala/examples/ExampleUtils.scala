@@ -4,7 +4,7 @@ import java.io.File
 
 import breeze.linalg.{DenseVector, Matrix, Vector, csvwrite}
 import breeze.stats.distributions.Uniform
-import com.feynmanliang.optala.{CachedPoint, Simplex}
+import com.feynmanliang.optala.{Solution, Simplex}
 
 /** Utility functions for example code and experiments. */
 private[examples] object ExampleUtils {
@@ -19,6 +19,6 @@ private[examples] object ExampleUtils {
 
   def createRandomSimplex(n: Int, f: Vector[Double] => Double): Simplex = Simplex(Seq.fill(n) {
     val simplexPoint = DenseVector(Uniform(-2D, 2D).sample(), Uniform(-1D, 1D).sample())
-    CachedPoint(simplexPoint, f(simplexPoint))
+    Solution(f, simplexPoint)
   })
 }
