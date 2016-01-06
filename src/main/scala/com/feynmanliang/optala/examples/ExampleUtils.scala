@@ -9,8 +9,8 @@ import breeze.linalg.{Matrix, csvwrite}
   */
 object ExampleUtils {
   def experimentWithResults(
-    experimentName: String,
-    resultFName: String) = (results: Matrix[Double]) => {
+      experimentName: String,
+      resultFName: String)(results: => Matrix[Double]) = {
     println(s"=== Performing experiment: $experimentName ===")
     val resultsFile = new File(s"results/$resultFName")
     println(s"Writing results to: $resultsFile")
