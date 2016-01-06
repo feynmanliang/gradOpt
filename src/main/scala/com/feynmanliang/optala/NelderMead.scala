@@ -1,125 +1,122 @@
 package com.feynmanliang.optala
 
-import breeze.linalg._
+import breeze.linalg.{norm, Vector, DenseVector}
+
+/** A point in a vector space and the value of the objective function evaluated at that point*/
+private[optala] case class CachedPoint(point: DenseVector[Double], objVal: Double)
 
 /** Nelder-Mead simplex, refined at each iteration */
-case class Simplex(points: Seq[(Vector[Double], Double)]) {
-  val sortedPoints = points.sortBy(_._2)
-  private[optala] val n = sortedPoints.size - 1D
+case class Simplex(private val points: Seq[CachedPoint]) {
+  val sortedPoints = points.sortBy(_.objVal)
+  val n = sortedPoints.size - 1D
+
+  /** Simplex point minimizing objective function */
+  val bestPoint = sortedPoints.head
+
+  /** Centroid of all N+1 points */
+  val centroid: DenseVector[Double] = sortedPoints.map(_.point).reduce(_+_) / (n+1)
 
   /** Centroid of the first n points */
-  val nCentroid: Vector[Double] = sortedPoints.init.map(_._1).reduce(_+_) / n
+  private[optala] val nCentroid: DenseVector[Double] = sortedPoints.init.map(_.point).reduce(_+_) / n
 
   /** Ray from n-centroid to n+1st point */
-  def xBar(t: Double): Vector[Double] = {
-    val xnp1 = sortedPoints.last._1
-    nCentroid + t * (xnp1 - nCentroid)
+  private[optala] def xBar(t: Double): DenseVector[Double] = {
+    val xNplus1 = sortedPoints.last.point
+    nCentroid + t * (xNplus1 - nCentroid)
   }
+
+  /** Average objective value over all n+1 simplex points */
+  private[optala] val averageObjVal: Double = sortedPoints.map(_.objVal).sum / (n+1)
 }
 
-/**
-* @param tol the minimum change in decision variable norm to continue
-*/
-class NelderMeadOptimizer(
-    var maxObjectiveEvals: Int = Int.MaxValue,
-    var maxSteps: Int = 50000,
-    var tol: Double = 1E-6) {
-  /**
-  * Initializes Nedler Mead with random `n`-point simplex in `d` dimensions,
-  * each entry ~ U[-1,1].
+/** An implementation of the Nelder-Mead optimization method.
+  *
+  * @param maxObjEvals maximum number of objective function evaluations before termination
+  * @param maxIter maximum number of iterations before termination
+  * @param tol minimum change in norm between simplex centroids from two consecutive iterations before termination
   */
+class NelderMeadOptimizer(
+    var maxObjEvals: Int = Int.MaxValue,
+    var maxIter: Int = 50000,
+    var tol: Double = 1E-6) {
+
+  /** Randomly initialize the initial simplex and run Nelder-Mead.
+    *
+    * @param f objective function to be minimized
+    * @param d dimensionality of the input domain of `f`
+    * @param n size of Nelder-Mead simplex
+    * @return
+    */
   def minimize(
       f: Vector[Double] => Double,
       d: Int,
-      n: Int,
-      reportPerf: Boolean): (Option[Vector[Double]], Option[PerfDiagnostics[Simplex]]) = {
+      n: Int): OptimizationResult[Simplex] = {
     val init = Simplex(Seq.fill(n) {
-      val x = 2D * (DenseVector.rand(d) - DenseVector.fill(d){0.5})
-      (x, f(x))
+      val x = 2D * (DenseVector.rand(d) - DenseVector.fill(d){0.5}) // randomly generate points in [-1,1]
+      CachedPoint(x, f(x))
     })
-    minimize(f, init, reportPerf)
+    minimize(f, init)
   }
 
-  /**
-  * Performs Nelder-Mead starting with initial simplex `init`.
-  * TODO: return and plot simplex evolution by parameterizing PerfDiagnostics
-  */
+  /** Run Nelder-Mead to minimize a function without requiring its gradient.
+    *
+    * @param f objective function to be minimized
+    * @param init initial simplex
+    * @return
+    */
   def minimize(
       f: Vector[Double] => Double,
-      init: Simplex,
-      reportPerf: Boolean): (Option[Vector[Double]], Option[PerfDiagnostics[Simplex]]) = {
-    require(init.points.size >= 3, "must have at least 3 points in simplex")
+      init: Simplex): OptimizationResult[Simplex] = {
+    require(init.n + 1 >= 2, "must have at least 2 points in simplex")
     val fCnt = new FunctionWithCounter(f)
 
     val xValues = nelderMead(fCnt, init)
-      .takeWhile(_ => fCnt.numCalls <= maxObjectiveEvals)
-      .take(maxSteps)
-      .map(s => (s, (s.points.map(_._1).reduce(_+_) / s.points.size.toDouble).toDenseVector))
-
-    val algorithmTrace = xValues
+      .takeWhile(_ => fCnt.numCalls <= maxObjEvals)
+      .take(maxIter)
+    val trace = xValues.head +: xValues
       .sliding(2)
-      .takeWhile(x => norm(x(1)._2 - x.head._2) >= tol)
+      .takeWhile(x => norm(x(1).centroid - x.head.centroid) >= tol)
       .map(_(1))
-
-    if (reportPerf) {
-      val fullTrace = xValues.head +: algorithmTrace.toSeq
-      val bestPoint = fullTrace
-        .minBy(_._1.points.map(_._2).min) // implicit archiving over lazy stream, find best solution seen
-        ._1
-        .points.minBy(_._2)
-        ._1
-      val perf = PerfDiagnostics(fullTrace.map(_._1).toList, fCnt.numCalls, 0)
-      (Some(bestPoint), Some(perf))
-    } else {
-      val bestPoint = algorithmTrace
-        .minBy(_._1.points.map(_._2).min) // implicit archiving over lazy stream, find best solution seen
-        ._1
-        .points.minBy(_._2)._1
-      (Some(bestPoint), None)
-    }
+      .toSeq
+    OptimizationResult(trace.toList, fCnt.numCalls, 0)
   }
 
   private def nelderMead(
     f: Vector[Double] => Double,
     simplex: Simplex): Stream[Simplex] = {
-    val nPts = simplex.sortedPoints.init
-    val (x1, fx1) = simplex.sortedPoints.head
-    val (xn, fxn) = nPts.last
-    val (xnp1, fxnp1) = simplex.sortedPoints.last
+    val x1toN = simplex.sortedPoints.init
+    val x1 = simplex.sortedPoints.head
+    val xN = x1toN.last
+    val xNplus1 = simplex.sortedPoints.last
 
-    val xRefl = simplex.xBar(-1D)
-    val fRefl = f(xRefl)
-
-    if (fx1 <= fRefl && fRefl < fxn) {
+    val xRefl = CachedPoint(simplex.xBar(-1D), f(simplex.xBar(-1D)))
+    if (x1.objVal <= xRefl.objVal && xRefl.objVal < xN.objVal) {
       // reflected point neither best nor xnp1
-      simplex #:: nelderMead(f, Simplex(nPts :+ (xRefl, fRefl)))
-    } else if (fRefl < fx1) {
+      simplex #:: nelderMead(f, Simplex(x1toN :+ xRefl))
+    } else if (xRefl.objVal < x1.objVal) {
       // reflected point is best, go further
-      val xRefl2 = simplex.xBar(-2D)
-      val fRefl2 = f(xRefl2)
-      if (fRefl2 < fRefl) {
-        simplex #:: nelderMead(f, Simplex(nPts :+ (xRefl2, fRefl2)))
+      val xRefl2 = CachedPoint(simplex.xBar(-2D), f(simplex.xBar(-2D)))
+      if (xRefl2.objVal < xRefl.objVal) {
+        simplex #:: nelderMead(f, Simplex(x1toN :+ xRefl2))
       } else {
-        simplex #:: nelderMead(f, Simplex(nPts :+ (xRefl, fRefl)))
+        simplex #:: nelderMead(f, Simplex(x1toN :+ xRefl))
       }
     } else {
       // reflected point worse than x_n, contract
-      val xReflOut = simplex.xBar(-.5D)
-      val fReflOut = f(xReflOut)
-      if (fxn <= fRefl && fRefl < fxnp1 && fReflOut <= fRefl) {
+      val xReflOut = CachedPoint(simplex.xBar(-.5D), f(simplex.xBar(-.5D)))
+      if (xN.objVal <= xRefl.objVal && xRefl.objVal < xNplus1.objVal && xReflOut.objVal <= xRefl.objVal) {
         // try ``outside'' contraction
-        simplex #:: nelderMead(f, Simplex(nPts :+ (xReflOut, fReflOut)))
+        simplex #:: nelderMead(f, Simplex(x1toN :+ xReflOut))
       } else{
-        val xReflIn = simplex.xBar(.5D)
-        val fReflIn = f(xReflIn)
-        if (fReflIn < fxnp1) {
+        val xReflIn = CachedPoint(simplex.xBar(.5D), f(simplex.xBar(.5D)))
+        if (xReflIn.objVal < xNplus1.objVal) {
           // try ``inside'' contraction
-          simplex #:: nelderMead(f, Simplex(nPts :+ (xReflIn, fReflIn)))
+          simplex #:: nelderMead(f, Simplex(x1toN :+ xReflIn))
         } else {
           // neither outside nor inside contraction acceptable, shrink simplex towards x1
-          simplex #:: nelderMead(f, Simplex(simplex.points.map { x =>
-            val newX = .5D * (x1 + x._1)
-            (newX, f(newX))
+          simplex #:: nelderMead(f, Simplex(simplex.sortedPoints.map { x =>
+            val newX = .5D * (x1.point + x.point)
+            CachedPoint(newX, f(newX))
           }))
         }
       }

@@ -26,7 +26,7 @@ class GeneticAlgorithm(
       selectionStrategy: SelectionStrategy = FitnessProportionateSelection,
       eliteCount: Int = 2,
       xoverFrac: Double = 0.8,
-      seed: Option[Long] = None): (Option[Vector[Double]], Option[PerfDiagnostics[Generation]]) = {
+      seed: Option[Long] = None): (Option[Vector[Double]], Option[OptimizationResult[Generation]]) = {
     implicit val randBasis: RandBasis = seed match {
       case Some(s) =>
         Random.setSeed(s)
@@ -56,7 +56,7 @@ class GeneticAlgorithm(
 
     // implements "best solution archiving" by finding best solution within lazy stream up until termination
     val bestSolution = iters.minBy(_.population.map(_._2).min)
-    val perf = PerfDiagnostics(
+    val perf = OptimizationResult(
       iters.toList,
       fCnt.numCalls,
       0

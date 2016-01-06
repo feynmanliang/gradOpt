@@ -1,15 +1,15 @@
 package com.feynmanliang.optala
 
-/**
-  * Detailed performance diagnostics from an iterative optimization run.
-  * @param stateTrace sequence of internal algorithm states and objective values for each iteration
-  * @param numObjEval the number of objective function evaluations
-  * @param numGradEval the number of gradient evaluations
-  * @tparam T the type of the interal algorithm state
+/** The results from a run of an iterative optimization algorithm along with performance diagnostic information.
+  *
+  * @param stateTrace sequence of states across iterations
+  * @param numObjEval number of objective function evaluations until termination
+  * @param numGradEval number of gradient evaluations until termination
+  * @tparam T the type for the algorithm's states
   */
-private[optala] case class PerfDiagnostics[T](
+private[optala] case class OptimizationResult[T](
     stateTrace: List[T],
-    numObjEval: Long, // make sure the Seq is evaluated before materializing
+    numObjEval: Long,
     numGradEval: Long)
 
 /**

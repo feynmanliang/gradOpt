@@ -1,13 +1,13 @@
 package com.feynmanliang.optala.examples
 
-import breeze.linalg.{DenseMatrix, Vector, DenseVector}
+import breeze.linalg.{DenseMatrix, DenseVector, Vector}
 import breeze.numerics.pow
-import breeze.stats.distributions.{ThreadLocalRandomGenerator, RandBasis, Uniform}
-import org.apache.commons.math3.random.MersenneTwister
-
-import com.feynmanliang.optala.{Simplex, GradientOptimizer, NelderMeadOptimizer}
+import breeze.stats.distributions.{RandBasis, ThreadLocalRandomGenerator}
 import com.feynmanliang.optala.GradientAlgorithm._
 import com.feynmanliang.optala.LineSearchConfig._
+import com.feynmanliang.optala.examples.ExampleUtils._
+import com.feynmanliang.optala.{GradientOptimizer, NelderMeadOptimizer}
+import org.apache.commons.math3.random.MersenneTwister
 
 object MultivariateGradientOptimizerExample {
   val seed = 42L
@@ -37,24 +37,15 @@ object MultivariateGradientOptimizerExample {
       }
     }
 
-    val nmOpt = new NelderMeadOptimizer(maxSteps = 10000, tol = 1E-10)
-    val initialSimplex = Simplex(Seq.fill(8) {
-      val simplexPoint = DenseVector(Uniform(-5D, -1D).sample(), Uniform(-6D, -2D).sample())
-      (simplexPoint, f(simplexPoint))
-    })
+    val nmOpt = new NelderMeadOptimizer(maxIter = 10000, tol = 1E-10)
+    val initialSimplex = createRandomSimplex(8, f)
     ExampleUtils.experimentWithResults("optimizing Rosenbrock function using nelder-mead", s"rosenbrock-nm.csv") {
-      nmOpt.minimize(f, initialSimplex, reportPerf = true) match {
-        case (_, Some(perf)) =>
-          println(f"Nelder-Mead & ${perf.stateTrace.size} & ${perf.numObjEval} & ${perf.numGradEval}" +
-            f" & ${perf.stateTrace.last.points.map(_._2).min}%.3E & $$\\cdot$$ \\\\")
-
-          // columns = (x1,y1,x2,y2,...), rows = iterations
-          DenseMatrix.horzcat(perf.stateTrace.map { simplex =>
-            val centroid = simplex.points.map(_._1).reduce(_+_) / simplex.points.size.toDouble
-            DenseMatrix(f(centroid) +: centroid.toArray: _*)
-          }: _*)
-        case _ => sys.error(s"No results for x0=$x0!!!")
-      }
+      val result = nmOpt.minimize(f, initialSimplex)
+      // columns = (x1,y1,x2,y2,...), rows = iterations
+      DenseMatrix.horzcat(result.stateTrace.map { simplex =>
+        val centroid = simplex.centroid
+        DenseMatrix(f(centroid) +: centroid.toArray: _*)
+      }: _*)
     }
   }
 }

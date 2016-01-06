@@ -13,57 +13,48 @@ class NelderMeadSuite extends FunSpec {
 
       describe(s"when initialized using a known ``good'' simplex and terminated due to convergence") {
         val nm = new NelderMeadOptimizer(
-          maxObjectiveEvals = Int.MaxValue,
-          maxSteps = Int.MaxValue,
+          maxObjEvals = Int.MaxValue,
+          maxIter = Int.MaxValue,
           tol = 1E-8)
         val tol = 1E-4
-        val init = Simplex(
-          List(
-            DenseVector(-1D,.1D),
-            DenseVector(-.1D,-3D),
-            DenseVector(-2D,7D)).map(x => (x,f(x))))
-          nm.minimize(f, init, reportPerf = true) match {
-            case (Some(xStar), Some(perf)) =>
-              val numIters = perf.stateTrace.size
-              it("should have at least one iteration") {
-                assert(numIters >= 1)
-              }
-              it(s"should have evaluated f >= $numIters times") {
-                assert(perf.numObjEval >= numIters)
-              }
-              it(s"should have not have evaluated df") {
-                assert(perf.numGradEval == 0)
-              }
-              it(s"should be within $tol to $xOpt") {
-                assert(norm((xStar - xOpt).toDenseVector) < tol)
-              }
-              it(s"should monotonically decrease average function value (since obj is convex)") {
-                val avgFVals = perf.stateTrace.map( _.points.map(_._2).sum)
-                assert(avgFVals.sliding(2).forall(x => x.head >= x(1)))
-              }
-            case _ => fail("failed to return answer or perf diagnostics")
-          }
+        val init = Simplex(List(
+          DenseVector(-1D, .1D),
+          DenseVector(-.1D, -3D),
+          DenseVector(-2D, 7D)).map(x => CachedPoint(x, f(x))))
+        val result = nm.minimize(f, init)
+        val numIters = result.stateTrace.size
+        it("should have at least one iteration") {
+          assert(numIters >= 1)
+        }
+        it(s"should have evaluated f >= $numIters times") {
+          assert(result.numObjEval >= numIters)
+        }
+        it(s"should have not have evaluated df") {
+          assert(result.numGradEval == 0)
+        }
+        it(s"should be within $tol to $xOpt") {
+          val xStar = result.stateTrace.last.bestPoint.point
+          assert(norm((xStar - xOpt).toDenseVector) < tol)
+        }
+        it(s"should monotonically decrease average function value (since obj is convex)") {
+          assert(result.stateTrace.sliding(2).forall(x => x(1).averageObjVal <= x.head.averageObjVal))
         }
 
         describe(s"when the initial simplex is automatically initialized and terminated on numObjectiveEvals") {
           val nm = new NelderMeadOptimizer(
-            maxObjectiveEvals = maxObjEvals,
-            maxSteps = Int.MaxValue,
+            maxObjEvals = maxObjEvals,
+            maxIter = Int.MaxValue,
             tol = 1E-8)
-          nm.minimize(f, 2, 5, reportPerf = true) match {
-            case (_, Some(perf)) =>
-              it(s"should monotonically decrease average function value (since obj is convex)") {
-                val avgFVals = perf.stateTrace.map(_.points.map(_._2).sum)
-                assert(avgFVals.sliding(2).forall(x => x.head >= x(1)))
-              }
-              it(s"terminates after evaluating objective function $maxObjEvals times") {
-                // assumes each iteration evaluates objective less that 0.2*maxObjectiveEvals
-                assert(perf.numObjEval <= (maxObjEvals*1.2).toInt)
-              }
-            case _ => fail("failed to return perf diagnostics")
+          val result = nm.minimize(f, 2, 5)
+          it(s"should monotonically decrease average function value (since obj is convex)") {
+            assert(result.stateTrace.sliding(2).forall(x => x(1).averageObjVal <= x.head.averageObjVal))
           }
-
+          it(s"terminates after evaluating objective function $maxObjEvals times") {
+            // assumes each iteration evaluates objective less that 0.2*maxObjectiveEvals
+            assert(result.numObjEval <= (maxObjEvals * 1.2).toInt)
+          }
         }
       }
     }
   }
+}
