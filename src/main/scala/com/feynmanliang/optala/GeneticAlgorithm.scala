@@ -16,8 +16,8 @@ class GeneticAlgorithm(
     var maxObjectiveEvals: Int = Int.MaxValue,
     var maxSteps: Int = 1000) {
   /**
-  *  Minimizes `f` subject to decision variables inside hypercube defined by `lb` and `ub`.
-  **/
+   *  Minimizes `f` subject to decision variables inside hypercube defined by `lb` and `ub`.
+   **/
   def minimize(
       f: Vector[Double] => Double,
       lb: Vector[Double],
@@ -51,8 +51,8 @@ class GeneticAlgorithm(
     }
 
     val iters = successors
-      .take(maxSteps)
       .takeWhile(_ => fCnt.numCalls <= maxObjectiveEvals)
+      .take(maxSteps)
 
     // implements "best solution archiving" by finding best solution within lazy stream up until termination
     val bestSolution = iters.minBy(_.population.map(_._2).min)

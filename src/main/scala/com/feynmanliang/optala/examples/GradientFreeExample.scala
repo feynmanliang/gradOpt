@@ -62,9 +62,7 @@ object GradientFreeExample {
       (simplexPoint, f(simplexPoint))
     })
     nmOpt.minimize(f, initialSimplex, reportPerf = true) match {
-      case (_, Some(perf)) =>
-        val sStar = perf.stateTrace.last
-        val xStar = sStar.points.minBy(_._2)._1
+      case (Some(xStar), Some(perf)) =>
         val fStar = f(xStar)
 
         // columns = (x1,y1,x2,y2,...), rows = iterations
@@ -125,8 +123,8 @@ object GradientFreeExample {
         })
         nmOpt.minimize(f, initialSimplex, reportPerf = true)._2 match {
           case Some(perf) =>
-            val numIters = perf.stateTrace.size.toDouble
-            DenseMatrix(numIters)
+            val numObjEval = perf.numObjEval.toDouble
+            DenseMatrix(numObjEval)
           case _ => sys.error("No result found!")
         }
       }): _*)
@@ -144,8 +142,8 @@ object GradientFreeExample {
         })
         nmOpt.minimize(f, initialSimplex, reportPerf = true)._2 match {
           case Some(perf) =>
-            val numIters = perf.stateTrace.size.toDouble
-            DenseMatrix(n.toDouble, numIters)
+            val numObjEval = perf.numObjEval.toDouble
+            DenseMatrix(n.toDouble, numObjEval)
           case _ => sys.error("No result found!")
         }
       }): _*)
@@ -182,7 +180,7 @@ object GradientFreeExample {
     val popSize = 20
     val eliteCount = 2
     val xoverFrac = 0.8
-    ga.minimize(f, lb, ub, popSize, StochasticUniversalSampling, eliteCount, xoverFrac, Some(seed)) match {
+    ga.minimize(f, lb, ub, popSize, StochasticUniversalSampling, eliteCount, xoverFrac, None) match {
       case (_, Some(perf)) =>
         val xstar = perf.stateTrace.last.population.minBy(_._2)._1
         val fstar = f(xstar)
@@ -199,6 +197,7 @@ object GradientFreeExample {
         val meanObjTrace = DenseMatrix(perf.stateTrace.map { gen =>
           gen.population.map(_._2).sum / gen.population.size.toDouble
         }: _*)
+        // min population objective value
         val minObjTrace = DenseMatrix(perf.stateTrace.map { gen =>
           gen.population.map(_._2).min
         }: _*)
@@ -206,13 +205,13 @@ object GradientFreeExample {
         csvwrite(objTraceFile, DenseMatrix.horzcat(meanObjTrace, minObjTrace))
         println(s"Wrote objTraces to $objTraceFile")
 
-        println(s"popSize: $popSize\n" +
-          s"eliteCount: $eliteCount\n" +
-          s"xstar:$xstar\n" +
-          s"fstar:$fstar\n" +
-          s"numSteps:${perf.stateTrace.length}\n" +
-          s"fEval:${perf.numObjEval}\n" +
-          s"dfEval:${perf.numGradEval}")
+        //println(s"popSize: $popSize\n" +
+        //  s"eliteCount: $eliteCount\n" +
+        //  s"xstar:$xstar\n" +
+        //  s"fstar:$fstar\n" +
+        //  s"numSteps:${perf.stateTrace.length}\n" +
+        //  s"fEval:${perf.numObjEval}\n" +
+        //  s"dfEval:${perf.numGradEval}")
       case _ => sys.error("No result found!")
     }
   }
@@ -225,7 +224,7 @@ object GradientFreeExample {
     DenseMatrix.horzcat((for {
       _ <- 0 until 1000
     } yield {
-      ga.minimize(f, lb, ub, popSize, StochasticUniversalSampling, eliteCount, xoverFrac, Some(seed)) match {
+      ga.minimize(f, lb, ub, popSize, StochasticUniversalSampling, eliteCount, xoverFrac, None) match {
         case (_, Some(perf)) =>
           val numGens = perf.stateTrace.size
           DenseMatrix(numGens.toDouble)
@@ -234,69 +233,163 @@ object GradientFreeExample {
     }): _*)
   }
 
-  def gaPerfPopSize(): Unit = experimentWithResults("GA population size", "ga-pop-size.csv") {
-    val ga = new GeneticAlgorithm(maxObjectiveEvals = 1000, maxSteps = Int.MaxValue)
-    val popSize = 20
-    val eliteCount = 2
-    val xoverFrac = 0.8
-    DenseMatrix.horzcat((for {
-      popSize <- 3 to 50
-      _ <- 0 until 1000
-    } yield {
-      ga.minimize(f, lb, ub, popSize, StochasticUniversalSampling, eliteCount, xoverFrac, Some(seed)) match {
-        case (_, Some(perf)) =>
-          val (xStar, fStar) = perf.stateTrace.last.population.minBy(_._2)
-          val bias = fStar - fOpt
-          val closestToGlobal = xOpts.contains(localMinima.minBy(xMin => norm(xMin - xStar)))
+  def gaPerfPopSize(): Unit = {
+    experimentWithResults("GA population size", "ga-pop-size.csv") {
+      val ga = new GeneticAlgorithm(maxObjectiveEvals = 1000, maxSteps = Int.MaxValue)
+      val popSize = 20
+      val eliteCount = 2
+      val xoverFrac = 0.8
+      DenseMatrix.horzcat((for {
+        popSize <- 3 to 50
+        _ <- 0 until 1000
+      } yield {
+        ga.minimize(f, lb, ub, popSize, StochasticUniversalSampling, eliteCount, xoverFrac, None) match {
+          case (_, Some(perf)) =>
+            val (xStar, fStar) = perf.stateTrace.last.population.minBy(_._2)
+            val bias = fStar - fOpt
+            val closestToGlobal = xOpts.contains(localMinima.minBy(xMin => norm(xMin - xStar)))
 
-          DenseMatrix(popSize.toDouble, fStar, bias, if (closestToGlobal) 1D else 0D)
-        case _ => sys.error("No result found!")
-      }
-    }): _*)
+            DenseMatrix(popSize.toDouble, fStar, bias, if (closestToGlobal) 1D else 0D)
+          case _ => sys.error("No result found!")
+        }
+      }): _*)
+    }
+
+    experimentWithResults("GA population size - num iters", "ga-pop-size-num-iters.csv") {
+      val ga = new GeneticAlgorithm(maxObjectiveEvals = 1000, maxSteps = Int.MaxValue)
+      val popSize = 20
+      val eliteCount = 2
+      val xoverFrac = 0.8
+      DenseMatrix.horzcat((for {
+        popSize <- 3 to 50
+      } yield {
+        ga.minimize(f, lb, ub, popSize, StochasticUniversalSampling, eliteCount, xoverFrac, None) match {
+          case (_, Some(perf)) =>
+            val numIters = perf.stateTrace.size.toDouble
+            DenseMatrix(popSize.toDouble, numIters)
+          case _ => sys.error("No result found!")
+        }
+      }): _*)
+    }
+
+    //// Save final states to show budget exhausted before convergence
+    //// columns = (popSize, x1,y1,x2,y2,...), rows = observations
+    //experimentWithResults("GA population size - states", "ga-pop-size-final-states.csv") {
+    //  val ga = new GeneticAlgorithm(maxObjectiveEvals = 1000, maxSteps = Int.MaxValue)
+    //  val popSize = 20
+    //  val eliteCount = 2
+    //  val xoverFrac = 0.8
+    //  DenseMatrix.horzcat((for {
+    //    popSize <- List(3, 7, 20, 50)
+    //  } yield {
+    //    ga.minimize(f, lb, ub, popSize, StochasticUniversalSampling, eliteCount, xoverFrac, None) match {
+    //      case (_, Some(perf)) =>
+    //        val numIters = perf.stateTrace.size.toDouble
+    //        DenseMatrix(popSize.toDouble +: perf.stateTrace.last.population.flatMap(_._1.toArray).toArray)
+    //      case _ => sys.error("No result found!")
+    //    }
+    //  }): _*)
+    //}
   }
 
-  def gaPerfEliteCount(): Unit = experimentWithResults("GA elite count", "ga-elite-count.csv") {
-    val ga = new GeneticAlgorithm(maxObjectiveEvals = 1000, maxSteps = Int.MaxValue)
-    val popSize = 20
-    val eliteCount = 2
-    val xoverFrac = 0.8
-    DenseMatrix.horzcat((for {
-      eliteCount <- 0 until 20
-      _ <- 0 until 1000
-    } yield {
-      ga.minimize(f, lb, ub, popSize, StochasticUniversalSampling, eliteCount, xoverFrac, Some(seed)) match {
-        case (_, Some(perf)) =>
-          val (xStar, fStar) = perf.stateTrace.last.population.minBy(_._2)
-          val bias = fStar - fOpt
-          val closestToGlobal = xOpts.contains(localMinima.minBy(xMin => norm(xMin - xStar)))
+  def gaPerfEliteCount(): Unit = {
+    experimentWithResults("GA elite count", "ga-elite-count.csv") {
+      val ga = new GeneticAlgorithm(maxObjectiveEvals = 1000, maxSteps = Int.MaxValue)
+      val popSize = 20
+      val eliteCount = 2
+      val xoverFrac = 0.8
+      DenseMatrix.horzcat((for {
+        eliteCount <- 0 until 20
+        _ <- 0 until 1000
+      } yield {
+        ga.minimize(f, lb, ub, popSize, StochasticUniversalSampling, eliteCount, xoverFrac, None) match {
+          case (_, Some(perf)) =>
+            val (xStar, fStar) = perf.stateTrace.last.population.minBy(_._2)
+            val bias = fStar - fOpt
+            val closestToGlobal = xOpts.contains(localMinima.minBy(xMin => norm(xMin - xStar)))
 
-          DenseMatrix(eliteCount.toDouble, fStar, bias, if (closestToGlobal) 1D else 0D)
-        case _ => sys.error("No result found!")
-      }
-    }): _*)
+            DenseMatrix(eliteCount.toDouble, fStar, bias, if (closestToGlobal) 1D else 0D)
+          case _ => sys.error("No result found!")
+        }
+      }): _*)
+    }
+
+    //experimentWithResults("GA elite count - 0 elite count => no monotonicity", "ga-elite-count-0.csv") {
+    //  val ga = new GeneticAlgorithm(maxObjectiveEvals = 1000, maxSteps = Int.MaxValue)
+    //  val popSize = 20
+    //  val eliteCount = 0
+    //  val xoverFrac = 0.8
+    //  ga.minimize(f, lb, ub, popSize, StochasticUniversalSampling, eliteCount, xoverFrac, None) match {
+    //    case (_, Some(perf)) =>
+    //       //min population objective value
+    //      DenseMatrix(perf.stateTrace.map { gen =>
+    //        gen.population.map(_._2).min
+    //      }: _*)
+    //    case _ => sys.error("No result found!")
+    //  }
+    //}
+
+    //experimentWithResults("GA elite count - num iters", "ga-elite-count-num-iters.csv") {
+    //  val ga = new GeneticAlgorithm(maxObjectiveEvals = 1000, maxSteps = Int.MaxValue)
+    //  val popSize = 20
+    //  val eliteCount = 2
+    //  val xoverFrac = 0.8
+    //  DenseMatrix.horzcat((for {
+    //    eliteCount <- 0 until 20
+    //  } yield {
+    //    ga.minimize(f, lb, ub, popSize, StochasticUniversalSampling, eliteCount, xoverFrac, None) match {
+    //      case (_, Some(perf)) =>
+    //        val numIters = perf.stateTrace.size.toDouble
+    //        DenseMatrix(eliteCount.toDouble, numIters)
+    //      case _ => sys.error("No result found!")
+    //    }
+    //  }): _*)
+    //}
   }
 
-  def gaPerfXoverFrac(): Unit = experimentWithResults("GA xover frac", "ga-xover-frac.csv") {
-    val ga = new GeneticAlgorithm(maxObjectiveEvals = 1000, maxSteps = Int.MaxValue)
-    val popSize = 20
-    val eliteCount = 2
-    val xoverFrac = 0.8
-    DenseMatrix.horzcat((for {
-      xoverFrac <- 0.0 to 1.0 by 0.05
-      _ <- 0 until 1000
-    } yield {
-      ga.minimize(f, lb, ub, popSize, StochasticUniversalSampling, eliteCount, xoverFrac, Some(seed)) match {
-        case (_, Some(perf)) =>
-          val (xStar, fStar) = perf.stateTrace.last.population.minBy(_._2)
-          val bias = fStar - fOpt
-          val closestToGlobal = xOpts.contains(localMinima.minBy(xMin => norm(xMin - xStar)))
+  def gaPerfXoverFrac(): Unit = {
+    experimentWithResults("GA xover frac", "ga-xover-frac.csv") {
+        val ga = new GeneticAlgorithm(maxObjectiveEvals = 1000, maxSteps = Int.MaxValue)
+        val popSize = 20
+        val eliteCount = 2
+        val xoverFrac = 0.8
+        DenseMatrix.horzcat((for {
+          xoverFrac <- 0.0 to 1.0 by 0.05
+          _ <- 0 until 1000
+        } yield {
+          ga.minimize(f, lb, ub, popSize, StochasticUniversalSampling, eliteCount, xoverFrac, None) match {
+            case (Some(xStar), Some(perf)) =>
+              val fStar = f(xStar)
+              val bias = fStar - fOpt
+              val closestToGlobal = xOpts.contains(localMinima.minBy(xMin => norm(xMin - xStar)))
 
-          DenseMatrix(xoverFrac.toDouble, fStar, bias, if (closestToGlobal) 1D else 0D)
-        case _ => sys.error("No result found!")
+              DenseMatrix(xoverFrac.toDouble, fStar, bias, if (closestToGlobal) 1D else 0D)
+            case _ => sys.error("No result found!")
+          }
+        }): _*)
       }
-    }): _*)
-  }
+    experimentWithResults("GA xover frac - noElite", "ga-xover-frac-noElite.csv") {
+        val ga = new GeneticAlgorithm(maxObjectiveEvals = 1000, maxSteps = Int.MaxValue)
+        val popSize = 20
+        val eliteCount = 0
+        val xoverFrac = 0.8
+        DenseMatrix.horzcat((for {
+          xoverFrac <- 0.0 to 1.0 by 0.05
+          _ <- 0 until 1000
+        } yield {
+          ga.minimize(f, lb, ub, popSize, StochasticUniversalSampling, eliteCount, xoverFrac, None) match {
+            case (Some(xStar), Some(perf)) =>
+              val fStar = f(xStar)
+              val bias = fStar - fOpt
+              val closestToGlobal = xOpts.contains(localMinima.minBy(xMin => norm(xMin - xStar)))
 
+              DenseMatrix(xoverFrac.toDouble, fStar, bias, if (closestToGlobal) 1D else 0D)
+            case _ => sys.error("No result found!")
+          }
+        }): _*)
+      }
+
+  }
   def gaPerfSelection(): Unit = {
     experimentWithResults("GA selection schemes: non-tournament", "ga-selection.csv") {
       val ga = new GeneticAlgorithm(maxObjectiveEvals = 1000, maxSteps = Int.MaxValue)
@@ -310,9 +403,9 @@ object GradientFreeExample {
         _ <- 0 until 1000
       } yield {
         val scheme = schemes(i)
-        ga.minimize(f, lb, ub, popSize, scheme, eliteCount, xoverFrac, Some(seed)) match {
-          case (_, Some(perf)) =>
-            val (xStar, fStar) = perf.stateTrace.last.population.minBy(_._2)
+        ga.minimize(f, lb, ub, popSize, scheme, eliteCount, xoverFrac, None) match {
+          case (Some(xStar), Some(perf)) =>
+            val fStar = f(xStar)
             val bias = fStar - fOpt
             val closestToGlobal = xOpts.contains(localMinima.minBy(xMin => norm(xMin - xStar)))
 
@@ -333,9 +426,9 @@ object GradientFreeExample {
         tournamentProb <- 0.05D until 0.95D by 0.05D
         _ <- 0 until 1000
       } yield {
-        ga.minimize(f, lb, ub, popSize, TournamentSelection(tournamentProb), eliteCount, xoverFrac, Some(seed)) match {
-          case (_, Some(perf)) =>
-            val (xStar, fStar) = perf.stateTrace.last.population.minBy(_._2)
+        ga.minimize(f, lb, ub, popSize, TournamentSelection(tournamentProb), eliteCount, xoverFrac, None) match {
+          case (Some(xStar), Some(perf)) =>
+            val fStar = f(xStar)
             val bias = fStar - fOpt
             val closestToGlobal = xOpts.contains(localMinima.minBy(xMin => norm(xMin - xStar)))
 
