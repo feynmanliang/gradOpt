@@ -1,25 +1,28 @@
 package com.feynmanliang.optala
 
+import scala.util.Random
+
 import breeze.numerics.ceil
 import org.apache.commons.math3.random.MersenneTwister
-
-import scala.util.Random
 
 import breeze.linalg._
 import breeze.stats.distributions._
 
+/** An individual representing a candidate solution within a population */
 private[optala] case class Individual(
     override val f: Vector[Double] => Double,
     override val point: DenseVector[Double]) extends Solution(f, point) {
   val fitness = -1D * objVal
 }
 
+/** A population of `Individual`s representing a generation of a GA */
 private[optala] case class Generation(population: Seq[Individual]) {
   def averageObjVal: Double = population.map(_.objVal).sum / population.size
   def averageFitness: Double = -1D * averageObjVal
   val bestPoint = population.minBy(_.objVal)
 }
 
+/** Results from a single GA run */
 private[optala] case class GARunResult(
   override val stateTrace: List[Generation],
   override val numObjEval: Long,
@@ -73,7 +76,8 @@ class GeneticAlgorithm(
       val parents = selectParents(gen.population, selectionStrategy, numParents)
 
       val elites = gen.population.sortBy(_.objVal).take(eliteCount)
-      val xovers = crossOver(fCnt, parents)
+      val parentPairs = parents.grouped(2).map(x => (x(0), x(1))).toSeq
+      val xovers = crossOver(fCnt, parentPairs)
       val mutants = mutate(fCnt, lb, ub, parents, mutantCount)
 
       Generation(elites ++ xovers ++ mutants)
@@ -99,15 +103,23 @@ class GeneticAlgorithm(
     })
   }
 
+  /** Selects parents for the successor generation
+    *
+    * @param pop population to choose parents from
+    * @param strategy parent selection strategy
+    * @param n number of parents to select
+    */
   private[optala] def selectParents(
       pop: Seq[Individual],
       strategy: SelectionStrategy,
       n: Int)(
       implicit randBasis: RandBasis = Rand): Seq[Individual] = strategy match {
+
     case FitnessProportionateSelection =>
       val minFitness = -1D*pop.map(_.objVal).max
       val dist = new Multinomial(Counter(pop.map(x => (x, -1D*x.objVal - minFitness + 1D))))
       dist.sample(n)
+
     case StochasticUniversalSampling =>
       val minFitness = pop.map(_.fitness).min
       // (individual, fitness normalized s.t. > 0)
@@ -117,7 +129,6 @@ class GeneticAlgorithm(
       }
       val f = popNorm.map(_._2).sum
       val stepSize = f / n
-
       val popNormSortedWithCumSums = popNorm
         .sortBy(-1D * _._2) // sort by descending fitness
         .foldRight(List[(Individual,Double)]()) {  // calculate cumulative sums of normalized fitness
@@ -128,12 +139,12 @@ class GeneticAlgorithm(
             }
         }
         .reverse
-
       val start = new Uniform(0, stepSize).sample()
       (start to n*stepSize by stepSize).map { p =>
         val (individual, _) = popNormSortedWithCumSums.dropWhile(_._2 < p).head
         individual
       }
+
     case TournamentSelection(tournamentProp) =>
       require(
         0D <= tournamentProp && tournamentProp <= 1D,
@@ -145,18 +156,29 @@ class GeneticAlgorithm(
       }
   }
 
-  private[optala] def crossOver(f: Vector[Double] => Double, parents: Seq[Individual])(
+  /** Crosses over pairs of parents by taking a random convex combination
+    *
+    * @param f objective function
+    * @param parentPairs parent pairs to cross over
+    */
+  private[optala] def crossOver(f: Vector[Double] => Double, parentPairs: Seq[(Individual, Individual)])(
       implicit randBasis: RandBasis = Rand): Seq[Individual] = {
     val dist = Uniform(0D, 1D)
-    parents.grouped(2).map { x =>
-      val p1 = x.head.point
-      val p2 = x(1).point
+    parentPairs.map { p =>
       val t = dist.sample()
-      val child = t*p1 + (1D - t)*p2
+      val child = t*p._1.point + (1D - t)*p._2.point
       Individual(f, child)
-    }.toSeq
+    }
   }
 
+  /** Generates mutant individuals by mutating parents
+    *
+    * @param f objective function
+    * @param lb lower bounds of feasible hypercube
+    * @param ub upper bounds of feasible hypercube
+    * @param parents parent individuals
+    * @param mutantCount number of mutants to generate
+    */
   private[optala] def mutate(
       f: Vector[Double] => Double,
       lb: DenseVector[Double],
