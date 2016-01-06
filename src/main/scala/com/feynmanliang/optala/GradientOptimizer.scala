@@ -1,5 +1,7 @@
 package com.feynmanliang.optala
 
+import scala.util.{Failure, Success, Try}
+
 import breeze.linalg._
 
 private[optala] case class GradientBasedSolution(
@@ -12,7 +14,7 @@ private[optala] case class GradientBasedRunResult (
     override val stateTrace: List[GradientBasedSolution],
     override val numObjEval: Long,
     override val numGradEval: Long) extends RunResult[GradientBasedSolution] {
-  override val bestSolution = stateTrace.maxBy(_.objVal)
+  override val bestSolution = stateTrace.minBy(_.objVal)
 }
 
 class GradientOptimizer(
@@ -27,7 +29,7 @@ class GradientOptimizer(
       b: Vector[Double],
       x0: Vector[Double],
       gradientAlgorithm: GradientAlgorithm.GradientAlgorithm,
-      lineSearchConfig: LineSearchConfig.LineSearchConfig): (Option[Vector[Double]], GradientBasedRunResult) = {
+      lineSearchConfig: LineSearchConfig.LineSearchConfig): Try[GradientBasedRunResult] = {
     val fCnt = new FunctionWithCounter[Vector[Double], Double](x => 0.5D * (x.t * (A * x)) - b.t * x)
     val dfCnt = new FunctionWithCounter[Vector[Double], Vector[Double]](x => A * x - b)
 
@@ -38,16 +40,15 @@ class GradientOptimizer(
     val xValues = (gradientAlgorithm match {
       case SteepestDescent => steepestDescent(lineSearch, fCnt, dfCnt, x0.toDenseVector)
       case ConjugateGradient => conjugateGradient(lineSearch, fCnt, dfCnt, x0.toDenseVector)
-    }).take(maxSteps).iterator
+    }).take(maxSteps)
+      .toSeq
 
-    val xValuesSeq = xValues.toSeq
-    val res = xValuesSeq.find(_.normGrad < tol)
-    val trace = res match {
-      case Some(xStar) => xValuesSeq.takeWhile(_.normGrad >= tol) :+ xStar
-      case None => xValuesSeq.takeWhile(_.normGrad >= tol)
+    xValues.find(_.normGrad < tol) match {
+      case Some(xStar) =>
+        val trace = (xValues.takeWhile(_.normGrad >= tol) :+ xStar).toList
+        Success(GradientBasedRunResult(trace, fCnt.numCalls, dfCnt.numCalls))
+      case None => Failure(sys.error("Did not converge!"))
     }
-    val result = GradientBasedRunResult(trace.toList, fCnt.numCalls, dfCnt.numCalls)
-    (res.map(_.point), result)
   }
 
   // Overload which vectorizes scalar-valued functions.
@@ -56,7 +57,7 @@ class GradientOptimizer(
       df: Double => Double,
       x0: Double,
       gradientAlgorithm: GradientAlgorithm.GradientAlgorithm,
-      lineSearchConfig: LineSearchConfig.LineSearchConfig): (Option[Vector[Double]], GradientBasedRunResult) = {
+      lineSearchConfig: LineSearchConfig.LineSearchConfig): Try[GradientBasedRunResult] = {
     val vecF: Vector[Double] => Double = v => {
       require(v.size == 1, s"vectorized f expected dimension 1 input but got ${v.size}")
       f(v(0))
@@ -77,7 +78,7 @@ class GradientOptimizer(
       df: Vector[Double] => Vector[Double],
       x0: Vector[Double],
       gradientAlgorithm: GradientAlgorithm,
-      lineSearchConfig: LineSearchConfig): (Option[Vector[Double]], GradientBasedRunResult) = {
+      lineSearchConfig: LineSearchConfig): Try[GradientBasedRunResult] = {
     val fCnt = new FunctionWithCounter(f)
     val dfCnt = new FunctionWithCounter(df)
 
@@ -91,13 +92,12 @@ class GradientOptimizer(
     }).take(maxSteps)
       .toSeq
 
-    val res = xValues.find(_.normGrad < tol)
-    val trace = res  match {
-      case Some(xStar) => xValues.takeWhile(_.normGrad >= tol) :+ xStar
-      case None => xValues.takeWhile(_.normGrad >= tol)
+    xValues.find(_.normGrad < tol) match {
+      case Some(xStar) =>
+        val trace = (xValues.takeWhile(_.normGrad >= tol) :+ xStar).toList
+        Success(GradientBasedRunResult(trace, fCnt.numCalls, dfCnt.numCalls))
+      case None => Failure(sys.error("Did not converge!"))
     }
-    val results = GradientBasedRunResult(trace.toList, fCnt.numCalls, dfCnt.numCalls)
-    (res.map(_.point), results)
   }
 
   /** Steepest Descent */

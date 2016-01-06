@@ -2,6 +2,8 @@ package com.feynmanliang.optala.examples
 
 import java.io.File
 
+import scala.util.{Failure, Success}
+
 import breeze.linalg.{DenseVector, DenseMatrix, csvread}
 
 import com.feynmanliang.optala.GradientOptimizer
@@ -27,10 +29,10 @@ object QuadraticFormExample {
         })
 
         gradOpt.minQuadraticForm(A, b, DenseVector.zeros(n), optAlgo, lsAlgo) match {
-          case (res, results) =>
+          case Success(results) =>
             println(s"$optAlgo & $fname & ${results.stateTrace.size} & ${results.numObjEval} & ${results.numGradEval}" +
               f" & ${results.bestSolution.objVal}%.3E & ${results.bestSolution.normGrad}%.3E\\\\")
-          case _ => throw new Exception("Minimize failed to return results diagnostics")
+          case Failure(e) => throw e
         }
       }
     }

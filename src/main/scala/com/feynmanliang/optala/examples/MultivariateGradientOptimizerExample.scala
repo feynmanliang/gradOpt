@@ -1,13 +1,16 @@
 package com.feynmanliang.optala.examples
 
+import scala.util.{Success, Failure}
+
 import breeze.linalg.{DenseMatrix, DenseVector, Vector}
 import breeze.numerics.pow
 import breeze.stats.distributions.{RandBasis, ThreadLocalRandomGenerator}
+import org.apache.commons.math3.random.MersenneTwister
+
 import com.feynmanliang.optala.GradientAlgorithm._
 import com.feynmanliang.optala.LineSearchConfig._
 import com.feynmanliang.optala.examples.ExampleUtils._
 import com.feynmanliang.optala.{GradientOptimizer, NelderMeadOptimizer}
-import org.apache.commons.math3.random.MersenneTwister
 
 object MultivariateGradientOptimizerExample {
   val seed = 42L
@@ -28,9 +31,9 @@ object MultivariateGradientOptimizerExample {
     for (algo <- List(SteepestDescent, ConjugateGradient)) {
       ExampleUtils.experimentWithResults(s"optimizing Rosenbrock function using $algo", s"rosenbrock-$algo.csv") {
         gradOpt.minimize(f, df, x0, algo, CubicInterpolation) match {
-          case (_, results) =>
+          case Success(results) =>
             DenseMatrix.horzcat(results.stateTrace.map(x => DenseMatrix(x.normGrad +: x.point.toArray: _*)): _*)
-          case _ => sys.error(s"No results for x0=$x0!!!")
+          case Failure(e) => throw e
         }
       }
     }

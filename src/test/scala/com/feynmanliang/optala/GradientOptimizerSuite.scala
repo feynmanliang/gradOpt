@@ -1,12 +1,12 @@
 package com.feynmanliang.optala
 
-import org.scalatest._
-
 import breeze.linalg._
 import breeze.numerics._
-
 import com.feynmanliang.optala.GradientAlgorithm._
 import com.feynmanliang.optala.LineSearchConfig._
+import org.scalatest._
+
+import scala.util.{Failure, Success}
 
 class GradientOptimizerSuite extends FunSpec {
   describe("FunctionWithCounter") {
@@ -33,15 +33,15 @@ class GradientOptimizerSuite extends FunSpec {
         name: String,
         f: Vector[Double] => Double,
         df: Vector[Double] => Vector[Double],
-        xOpt: Vector[Double],
-        xInits: List[Vector[Double]])
+        xOpt: DenseVector[Double],
+        xInits: List[DenseVector[Double]])
 
       val testCases = List(
         ConvexTestCase(
           "f(x) = x^2",
           v => v dot v,
           x => 2D*x,
-          Vector(0D),
+          DenseVector(0D),
           List(-17.3, 0.1, 4.2).map(DenseVector(_))),
         ConvexTestCase(
           "f(x,y) = (x-1)^2 + (y-2)^2",
@@ -72,7 +72,7 @@ class GradientOptimizerSuite extends FunSpec {
           x0 <- xInits
         } describe(s"when initialized at $x0") {
           opt.minimize(f, df, x0, gradientAlgorithm, CubicInterpolation) match {
-            case (Some(xStar), results) =>
+            case Success(results) =>
               val numIters = results.stateTrace.size
               it("should have at least one iteration") {
                 assert(numIters >= 1)
@@ -84,9 +84,9 @@ class GradientOptimizerSuite extends FunSpec {
                 assert(results.numGradEval > numIters)
               }
               it(s"should be within $tol to $xOpt") {
-                assert(norm((xStar - xOpt).toDenseVector) < tol)
+                assert(norm((results.bestSolution.point - xOpt).toDenseVector) < tol)
               }
-            case _ => fail(s"$gradientAlgorithm failed to return answer or results diagnostics on $name")
+            case Failure(e) => fail(e)
           }
         }
       }
@@ -110,7 +110,7 @@ class GradientOptimizerSuite extends FunSpec {
           for (lineAlgo <- List(Exact, CubicInterpolation)) {
             describe(s"using $lineAlgo") {
               opt.minQuadraticForm(A, b, x0, gradAlgo, lineAlgo) match {
-                case (Some(xStar), results) =>
+                case Success(results) =>
                   val numIters = results.stateTrace.size
                   it("should have at least one iteration") {
                     assert(numIters >= 1)
@@ -127,9 +127,9 @@ class GradientOptimizerSuite extends FunSpec {
                     assert(results.numGradEval > numIters)
                   }
                   it(s"should be within $tol to $xOpt") {
-                    assert(norm((xStar - xOpt).toDenseVector) < tol)
+                    assert(norm((results.bestSolution.point - xOpt).toDenseVector) < tol)
                   }
-                case _ => fail(s"$gradAlgo with $lineAlgo failed to return answer or results diagnostics on quadForm")
+                case Failure(e) => fail(e)
               }
             }
           }
