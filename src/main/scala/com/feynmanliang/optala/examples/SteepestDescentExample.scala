@@ -15,11 +15,11 @@ object SteepestDescentExample {
     for {
       x0 <- List[Double](-50, -10, -5, -1, -0.1, -1E-2, -1E-3, -1E-4, -1E-5, 1E-5, 1E-4, 1E-3, 1E-2, 0.1, 1, 5, 10, 50)
     } {
-      gradOpt.minimize(f, df, x0, SteepestDescent, CubicInterpolation, reportPerf = true) match {
-        case (_, Some(perf)) =>
-          println(f"$x0 & ${perf.stateTrace.size} & ${perf.numObjEval} & ${perf.numGradEval}" +
-            f" & ${perf.bestSolution.objVal}%.3E & ${perf.bestSolution.normGrad}%.3E\\\\")
-          DenseMatrix(x0 +: perf.stateTrace.flatMap(_.point.toArray):_*)
+      gradOpt.minimize(f, df, x0, SteepestDescent, CubicInterpolation) match {
+        case (_, results) =>
+          println(f"$x0 & ${results.stateTrace.size} & ${results.numObjEval} & ${results.numGradEval}" +
+            f" & ${results.bestSolution.objVal}%.3E & ${results.bestSolution.normGrad}%.3E\\\\")
+          DenseMatrix(x0 +: results.stateTrace.flatMap(_.point.toArray):_*)
         case _ => sys.error(s"No results for x0=$x0!!!")
       }
     }

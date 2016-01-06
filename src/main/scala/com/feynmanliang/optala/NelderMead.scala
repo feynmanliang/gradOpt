@@ -2,8 +2,7 @@ package com.feynmanliang.optala
 
 import breeze.linalg.{norm, Vector, DenseVector}
 
-
-/** Nelder-Mead simplex, refined at each iteration */
+/** A `n+1` point simplex */
 private[optala] case class Simplex(private val points: Seq[Solution]) {
   val sortedSolutions = points.sortBy(_.objVal)
   val n = sortedSolutions.size - 1D
@@ -11,13 +10,13 @@ private[optala] case class Simplex(private val points: Seq[Solution]) {
   /** Simplex point minimizing objective function */
   val bestSolution = sortedSolutions.head
 
-  /** Centroid of all N+1 points */
+  /** Centroid of all `n+1` points */
   val centroid: DenseVector[Double] = sortedSolutions.map(_.point).reduce(_+_) / (n+1)
 
   /** Centroid of the first n points */
   private[optala] val nCentroid: DenseVector[Double] = sortedSolutions.init.map(_.point).reduce(_+_) / n
 
-  /** Ray from n-centroid to n+1st point */
+  /** Ray from `nCentroid` to n+1 point */
   private[optala] def xBar(t: Double): DenseVector[Double] = {
     val xNplus1 = sortedSolutions.last.point
     nCentroid + t * (xNplus1 - nCentroid)

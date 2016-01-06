@@ -27,9 +27,9 @@ object MultivariateGradientOptimizerExample {
     val gradOpt = new GradientOptimizer(maxSteps = 10000, tol = 1E-6)
     for (algo <- List(SteepestDescent, ConjugateGradient)) {
       ExampleUtils.experimentWithResults(s"optimizing Rosenbrock function using $algo", s"rosenbrock-$algo.csv") {
-        gradOpt.minimize(f, df, x0, algo, CubicInterpolation, reportPerf = true) match {
-          case (_, Some(perf)) =>
-            DenseMatrix.horzcat(perf.stateTrace.map(x => DenseMatrix(x.normGrad +: x.point.toArray: _*)): _*)
+        gradOpt.minimize(f, df, x0, algo, CubicInterpolation) match {
+          case (_, results) =>
+            DenseMatrix.horzcat(results.stateTrace.map(x => DenseMatrix(x.normGrad +: x.point.toArray: _*)): _*)
           case _ => sys.error(s"No results for x0=$x0!!!")
         }
       }

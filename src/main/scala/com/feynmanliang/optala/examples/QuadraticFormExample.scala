@@ -26,11 +26,11 @@ object QuadraticFormExample {
           0.5
         })
 
-        gradOpt.minQuadraticForm(A, b, DenseVector.zeros(n), optAlgo, lsAlgo, reportPerf = true) match {
-          case (res, Some(perf)) =>
-            println(s"$optAlgo & $fname & ${perf.stateTrace.size} & ${perf.numObjEval} & ${perf.numGradEval}" +
-              f" & ${perf.bestSolution.objVal}%.3E & ${perf.bestSolution.normGrad}%.3E\\\\")
-          case _ => throw new Exception("Minimize failed to return perf diagnostics")
+        gradOpt.minQuadraticForm(A, b, DenseVector.zeros(n), optAlgo, lsAlgo) match {
+          case (res, results) =>
+            println(s"$optAlgo & $fname & ${results.stateTrace.size} & ${results.numObjEval} & ${results.numGradEval}" +
+              f" & ${results.bestSolution.objVal}%.3E & ${results.bestSolution.normGrad}%.3E\\\\")
+          case _ => throw new Exception("Minimize failed to return results diagnostics")
         }
       }
     }
