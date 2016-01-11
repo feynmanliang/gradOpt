@@ -27,7 +27,7 @@ private[optala] case class GARunResult(
     override val stateTrace: List[Generation],
     override val numObjEval: Long,
     override val numGradEval: Long) extends RunResult[Generation] {
-  override val bestSolution = stateTrace.maxBy(_.bestIndividual.objVal).bestIndividual
+  override val bestSolution = stateTrace.maxBy(_.bestIndividual.fitness).bestIndividual
 }
 
 /** An implementation of the Genetic Algorithm (GA) optimization method for constrained optimizations over a hypercube
@@ -64,7 +64,7 @@ class GeneticAlgorithm(
     val initGen = initialize(fCnt, lb, ub, popSize)
 
     val successors: Stream[Generation] = Stream.iterate(initGen) { gen =>
-      val numParents = ((max(2*xoverCount, mutantCount)+1) / 2) * 2 // ensure even pairs for crossover
+      val numParents = ((max(2*xoverCount, mutantCount)+1) / 2) * 2 // ensure even number parents
       val parents = selectionStrategy.selectParents(gen.population, numParents)
 
       val elites = gen.population.sortBy(_.objVal).take(eliteCount)
@@ -101,9 +101,8 @@ class GeneticAlgorithm(
     */
   private[optala] def crossOver(f: Vector[Double] => Double, parentPairs: Seq[(Individual, Individual)])(
       implicit randBasis: RandBasis): Seq[Individual] = {
-    val dist = Uniform(0D, 1D)
     parentPairs.map { p =>
-      val t = dist.sample()
+      val t = Uniform(0D, 1D).sample()
       val child = t*p._1.point + (1D - t)*p._2.point
       Individual(f, child)
     }
