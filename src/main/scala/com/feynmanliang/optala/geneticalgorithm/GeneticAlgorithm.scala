@@ -1,12 +1,12 @@
-package com.feynmanliang.optala
-
-import scala.util.Random
-
-import breeze.numerics.ceil
-import org.apache.commons.math3.random.MersenneTwister
+package com.feynmanliang.optala.geneticalgorithm
 
 import breeze.linalg._
+import breeze.numerics.ceil
 import breeze.stats.distributions._
+import com.feynmanliang.optala.{FunctionWithCounter, RunResult, Solution}
+import org.apache.commons.math3.random.MersenneTwister
+
+import scala.util.Random
 
 /** An individual representing a candidate solution within a population */
 private[optala] case class Individual(

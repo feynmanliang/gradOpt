@@ -4,7 +4,8 @@ import java.io.File
 
 import breeze.linalg.{DenseVector, Matrix, Vector, csvwrite}
 import breeze.stats.distributions.Uniform
-import com.feynmanliang.optala.{Solution, Simplex}
+import com.feynmanliang.optala.Solution
+import com.feynmanliang.optala.neldermead.Simplex
 
 /** Utility functions for example code and experiments. */
 private[examples] object ExampleUtils {

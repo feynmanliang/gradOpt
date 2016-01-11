@@ -3,6 +3,7 @@ package com.feynmanliang.optala
 import breeze.linalg._
 import breeze.numerics._
 import breeze.stats.distributions._
+import com.feynmanliang.optala.geneticalgorithm.{TournamentSelection, StochasticUniversalSampling, FitnessProportionateSelection, GeneticAlgorithm}
 import org.apache.commons.math3.random.MersenneTwister
 import org.scalatest._
 

@@ -1,5 +1,7 @@
 package com.feynmanliang.optala.examples
 
+import com.feynmanliang.optala.neldermead.NelderMeadOptimizer
+
 import scala.util.{Success, Failure}
 
 import breeze.linalg.{DenseMatrix, DenseVector, Vector}
@@ -10,7 +12,7 @@ import org.apache.commons.math3.random.MersenneTwister
 import com.feynmanliang.optala.GradientAlgorithm._
 import com.feynmanliang.optala.LineSearchConfig._
 import com.feynmanliang.optala.examples.ExampleUtils._
-import com.feynmanliang.optala.{GradientOptimizer, NelderMeadOptimizer}
+import com.feynmanliang.optala.GradientOptimizer
 
 object MultivariateGradientOptimizerExample {
   val seed = 42L

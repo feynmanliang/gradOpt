@@ -5,6 +5,8 @@ import java.io.File
 import breeze.linalg._
 import breeze.numerics.pow
 import breeze.stats.distributions.{RandBasis, ThreadLocalRandomGenerator, Uniform}
+import com.feynmanliang.optala.geneticalgorithm.{TournamentSelection, StochasticUniversalSampling, FitnessProportionateSelection, GeneticAlgorithm}
+import com.feynmanliang.optala.neldermead.{NelderMeadOptimizer, Simplex}
 import org.apache.commons.math3.random.MersenneTwister
 
 import com.feynmanliang.optala._
@@ -63,7 +65,7 @@ object GradientFreeExample {
 
     // columns = (x1,y1,x2,y2,...), rows = iterations
     val stateTrace = DenseMatrix.vertcat(result.stateTrace.map { simplex =>
-      DenseMatrix(simplex.sortedSolutions.flatMap(_.point.toArray))
+      DenseMatrix(simplex.solutionsByObj.flatMap(_.point.toArray))
     }: _*)
     val stateTraceFile = new File("results/nm-stateTrace.csv")
     csvwrite(stateTraceFile, stateTrace)
@@ -71,7 +73,7 @@ object GradientFreeExample {
 
     // objective value at simplex centroid
     val objTrace = DenseMatrix(result.stateTrace.map { s =>
-      val candidates = s.sortedSolutions.map(_.point)
+      val candidates = s.solutionsByObj.map(_.point)
       f(candidates.reduce(_+_) / candidates.size.toDouble)
     }: _*)
     val objTraceFile = new File("results/nm-objTrace.csv")

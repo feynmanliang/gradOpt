@@ -1,6 +1,7 @@
 package com.feynmanliang.optala
 
 import breeze.linalg._
+import com.feynmanliang.optala.neldermead.{NelderMeadOptimizer, Simplex}
 import org.scalatest._
 
 class NelderMeadSuite extends FunSpec {
