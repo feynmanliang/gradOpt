@@ -46,5 +46,5 @@ lazy val root = (project in file(".")).
       "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/",
       "Sonatype Releases" at "https://oss.sonatype.org/content/repositories/releases/"
     ),
-    cleanFiles <+= baseDirectory { base => base / "results" }
+    cleanFiles <+= baseDirectory { base => base / "results" / "*" }
   )
