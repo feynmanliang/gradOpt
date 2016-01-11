@@ -1,7 +1,6 @@
 package com.feynmanliang.optala
 
 /** Wraps a function to count the number of times it is evaluated.
-  *
   * @param f underlying function being counted
   * @tparam T input type of `f`
   * @tparam U return type of `f`

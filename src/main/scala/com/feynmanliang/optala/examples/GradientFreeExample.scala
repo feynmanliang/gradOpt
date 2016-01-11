@@ -6,7 +6,7 @@ import breeze.linalg._
 import breeze.numerics.pow
 import breeze.stats.distributions.{RandBasis, ThreadLocalRandomGenerator, Uniform}
 import com.feynmanliang.optala.geneticalgorithm.{TournamentSelection, StochasticUniversalSampling, FitnessProportionateSelection, GeneticAlgorithm}
-import com.feynmanliang.optala.neldermead.{NelderMeadOptimizer, Simplex}
+import com.feynmanliang.optala.neldermead.{NelderMead, Simplex}
 import org.apache.commons.math3.random.MersenneTwister
 
 import com.feynmanliang.optala._
@@ -58,7 +58,7 @@ object GradientFreeExample {
   }
   def nmExample(): Unit = {
     println(s"===Optimizing 6HCF using Nedler-Mead===")
-    val nmOpt = new NelderMeadOptimizer(maxObjEvals = 1000, maxIter = Int.MaxValue, tol = 0D)
+    val nmOpt = new NelderMead(maxObjEvals = 1000, maxIter = Int.MaxValue, tol = 0D)
     val initialSimplex: Simplex = createRandomSimplex(8, f)
     val result = nmOpt.minimize(f, initialSimplex)
     val xStar = result.bestSolution
@@ -83,7 +83,7 @@ object GradientFreeExample {
 
   def nmObjEvalEff(): Unit = experimentWithResults("Nelder-Mead obj eval efficiency", "nm-obj-eval-eff.csv") {
     val n = 8
-    val nmOpt = new NelderMeadOptimizer(maxObjEvals = 1000, maxIter = Int.MaxValue, tol = 0D)
+    val nmOpt = new NelderMead(maxObjEvals = 1000, maxIter = Int.MaxValue, tol = 0D)
     DenseMatrix.horzcat((for {
       _ <- 0 until 1000
     } yield {
@@ -97,7 +97,7 @@ object GradientFreeExample {
   def nmConvRate(): Unit = {
     experimentWithResults("Nelder-Mead convergence rate, n=8", "nm-conv-rate.csv") {
       val n = 8
-      val nmOpt = new NelderMeadOptimizer(maxObjEvals = Int.MaxValue, maxIter = Int.MaxValue, tol = 1E-6)
+      val nmOpt = new NelderMead(maxObjEvals = Int.MaxValue, maxIter = Int.MaxValue, tol = 1E-6)
       DenseMatrix.horzcat((for {
         _ <- 0 until 1000
       } yield {
@@ -109,7 +109,7 @@ object GradientFreeExample {
     }
 
     experimentWithResults("Nelder-Mead convergence rate, varying n", "nm-conv-rate-vary-n.csv") {
-      val nmOpt = new NelderMeadOptimizer(maxObjEvals = Int.MaxValue, maxIter = Int.MaxValue, tol = 1E-6)
+      val nmOpt = new NelderMead(maxObjEvals = Int.MaxValue, maxIter = Int.MaxValue, tol = 1E-6)
       DenseMatrix.horzcat((for {
         n <- 3 to 30
         _ <- 0 until 1000
@@ -123,7 +123,7 @@ object GradientFreeExample {
   }
 
   def nmPerf(): Unit = experimentWithResults(s"Nelder-Mead number simplex points", "nm-vary-n.csv") {
-    val nmOpt = new NelderMeadOptimizer(maxObjEvals = 1000, maxIter = Int.MaxValue, tol = 0D)
+    val nmOpt = new NelderMead(maxObjEvals = 1000, maxIter = Int.MaxValue, tol = 0D)
     DenseMatrix.horzcat((for {
       n <- 3 to 30
       _ <- 0 until 1000

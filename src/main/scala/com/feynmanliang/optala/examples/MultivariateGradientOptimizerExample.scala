@@ -1,6 +1,6 @@
 package com.feynmanliang.optala.examples
 
-import com.feynmanliang.optala.neldermead.NelderMeadOptimizer
+import com.feynmanliang.optala.neldermead.NelderMead
 
 import scala.util.{Success, Failure}
 
@@ -40,7 +40,7 @@ object MultivariateGradientOptimizerExample {
       }
     }
 
-    val nmOpt = new NelderMeadOptimizer(maxIter = 10000, tol = 1E-10)
+    val nmOpt = new NelderMead(maxIter = 10000, tol = 1E-10)
     val initialSimplex = createRandomSimplex(8, f)
     ExampleUtils.experimentWithResults("optimizing Rosenbrock function using nelder-mead", s"rosenbrock-nm.csv") {
       val result = nmOpt.minimize(f, initialSimplex)

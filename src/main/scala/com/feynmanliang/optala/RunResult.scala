@@ -1,7 +1,6 @@
 package com.feynmanliang.optala
 
 /** The results from a run of an iterative optimization algorithm along with performance diagnostic information.
-  *
   * @tparam T type of an algorithm's internal state
   */
 trait RunResult[T] {

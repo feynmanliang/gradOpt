@@ -15,7 +15,6 @@ private[optala] case class Individual(
 }
 
 /** A generation (i.e. iteration of a GA).
-  *
   * @param population the individuals alive in this generation
   */
 private[optala] case class Generation(population: Seq[Individual]) {
@@ -32,8 +31,8 @@ private[optala] case class GARunResult(
   override val bestSolution = stateTrace.maxBy(_.bestIndividual.objVal).bestIndividual
 }
 
-/** An implementation of the Genetic Algorithm (GA) optimization method.
-  *
+/** An implementation of the Genetic Algorithm (GA) optimization method for constrained optimizations over a hypercube
+  * feasible set.
   * @param maxObjectiveEvals maximum number of objective function evaluations before termination
   * @param maxIter maximum number of iterations before termination
   */
@@ -42,7 +41,6 @@ class GeneticAlgorithm(
     var maxIter: Int = 1000) {
 
   /** Minimizes `f` subject to decision variables inside hypercube defined by `lb` and `ub`.
-    *
     * @param f objective function
     * @param lb lower bounds of hypercube
     * @param ub upper bounds of hypercube
@@ -92,7 +90,7 @@ class GeneticAlgorithm(
     GARunResult(trace, fCnt.numCalls, 0)
   }
 
-  /** Initializes a population to randomly lie within the hypercube given by `lb` and `ub` */
+  /** Initializes a population to randomly lie within the hypercube given by `lb` and `ub`. */
   private[optala] def initialize(
       f: Vector[Double] => Double, lb: DenseVector[Double], ub: DenseVector[Double], popSize: Int)(
       implicit randBasis: RandBasis = Rand): Generation = {
@@ -105,8 +103,7 @@ class GeneticAlgorithm(
     })
   }
 
-  /** Crosses over pairs of parents by taking a random convex combination
-    *
+  /** Crosses over pairs of parents by taking a random convex combination.
     * @param f objective function
     * @param parentPairs parent pairs to cross over
     */
@@ -120,14 +117,7 @@ class GeneticAlgorithm(
     }
   }
 
-  /** Generates mutant individuals by mutating parents
-    *
-    * @param f objective function
-    * @param lb lower bounds of feasible hypercube
-    * @param ub upper bounds of feasible hypercube
-    * @param parents parent individuals
-    * @param mutantCount number of mutants to generate
-    */
+  /** Generates mutant individuals by mutating parents. */
   private[optala] def mutate(
       f: Vector[Double] => Double,
       lb: DenseVector[Double],

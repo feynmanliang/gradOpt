@@ -2,13 +2,12 @@ package com.feynmanliang.optala.geneticalgorithm
 
 import breeze.linalg.Counter
 import breeze.numerics.ceil
-import breeze.stats.distributions.{RandBasis, Rand, Uniform, Multinomial}
+import breeze.stats.distributions.{Uniform, Multinomial, Rand, RandBasis}
 
 import scala.util.Random
 
 sealed trait SelectionStrategy {
   /** Selects parents for the next generation.
-    *
     * @param pop population to choose parents from
     * @param numParents number of parents to select
     * @param randBasis optional random seed, randomly initialized if omitted
@@ -17,6 +16,7 @@ sealed trait SelectionStrategy {
     pop: Seq[Individual], numParents: Int)(implicit randBasis: RandBasis = Rand): Seq[Individual]
 }
 
+/** Selects parents by drawing from a categorical with probabilities proportional to fitness. */
 case object FitnessProportionateSelection extends SelectionStrategy {
   override def selectParents(pop: Seq[Individual], numParents: Int)(
       implicit randBasis: RandBasis = Rand): Seq[Individual] = {
@@ -26,6 +26,9 @@ case object FitnessProportionateSelection extends SelectionStrategy {
   }
 }
 
+/** Selects parents by choosing a single random value and sampling parents at uniformly spaced intervals.
+  * @see {https://en.wikipedia.org/wiki/Stochastic_universal_sampling}
+  */
 case object StochasticUniversalSampling extends SelectionStrategy {
   override def selectParents(pop: Seq[Individual], numParents: Int)(
       implicit randBasis: RandBasis = Rand): Seq[Individual] = {
@@ -56,6 +59,9 @@ case object StochasticUniversalSampling extends SelectionStrategy {
   }
 }
 
+/** Selects parents by taking random `tournamentProportion` proportion subsets of the population and selecting the best
+  * individual from each subset.
+  */
 case class TournamentSelection(tournamentProportion: Double) extends SelectionStrategy {
   override def selectParents(pop: Seq[Individual], numParents: Int)(
       implicit randBasis: RandBasis = Rand): Seq[Individual] = {

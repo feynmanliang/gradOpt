@@ -13,7 +13,7 @@ class NelderMeadSuite extends FunSpec {
       val xOpt = DenseVector(0D, 0D)
 
       describe(s"when initialized using a known ``good'' simplex and terminated due to convergence") {
-        val nm = new NelderMeadOptimizer(
+        val nm = new NelderMead(
           maxObjEvals = Int.MaxValue,
           maxIter = Int.MaxValue,
           tol = 1E-8)
@@ -42,7 +42,7 @@ class NelderMeadSuite extends FunSpec {
         }
 
         describe(s"when the initial simplex is automatically initialized and terminated on numObjectiveEvals") {
-          val nm = new NelderMeadOptimizer(
+          val nm = new NelderMead(
             maxObjEvals = maxObjEvals,
             maxIter = Int.MaxValue,
             tol = 1E-8)

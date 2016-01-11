@@ -3,7 +3,6 @@ package com.feynmanliang.optala
 import breeze.linalg.{DenseVector, Vector}
 
 /** A (possibly incorrect) solution to an optimization problem.
-  *
   * @param f objective function minimized by solution
   * @param point assignment to decision variables
   */
