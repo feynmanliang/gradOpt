@@ -295,10 +295,10 @@ object GradientFreeExample {
     runWithResults("GA elite count - num iters", SEED, "ga-elite-count-num-iters.csv") { seedRB =>
       val ga = new GeneticAlgorithm(maxObjectiveEvals = MAX_OBJ_EVALS, maxIter = Int.MaxValue)
       val seed = seedRB.randInt.sample()
-      val rand = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(seed)))
       DenseMatrix.horzcat((for {
         eliteCount <- 0 until 20
       } yield {
+        val rand = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(seed)))
         val result = ga.minimize(
           f, lb, ub,
           popSize = 20,
@@ -346,7 +346,7 @@ object GradientFreeExample {
           popSize = 20,
           selectionStrategy = StochasticUniversalSampling,
           eliteCount = 0,
-          xoverFrac = 0.8)(rand)
+          xoverFrac = xoverFrac)(rand)
         val best = result.bestSolution
         val (xStar, fStar) = (best.point, best.objVal)
         val bias = fStar - fOpt
