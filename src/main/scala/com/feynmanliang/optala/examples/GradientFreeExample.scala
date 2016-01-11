@@ -160,7 +160,7 @@ object GradientFreeExample {
     // mean population objective value
     val meanObjTrace = DenseMatrix(result.stateTrace.map(_.averageObjVal): _*)
     // min population objective value
-    val minObjTrace = DenseMatrix(result.stateTrace.map(_.bestPoint.objVal): _*)
+    val minObjTrace = DenseMatrix(result.stateTrace.map(_.bestIndividual.objVal): _*)
     val objTraceFile = new File("results/ga-objTrace.csv")
     csvwrite(objTraceFile, DenseMatrix.horzcat(meanObjTrace, minObjTrace))
     println(s"Wrote objTraces to $objTraceFile")
@@ -258,7 +258,7 @@ object GradientFreeExample {
       val xoverFrac = 0.8
       val result = ga.minimize(f, lb, ub, popSize, StochasticUniversalSampling, eliteCount, xoverFrac, None)
       //min population objective value
-      DenseMatrix(result.stateTrace.map(_.bestPoint.objVal): _*)
+      DenseMatrix(result.stateTrace.map(_.bestIndividual.objVal): _*)
     }
 
     experimentWithResults("GA elite count - num iters", "ga-elite-count-num-iters.csv") {

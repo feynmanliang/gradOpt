@@ -1,9 +1,8 @@
-package com.feynmanliang.optala
+package com.feynmanliang.optala.geneticalgorithm
 
 import breeze.linalg._
 import breeze.numerics._
 import breeze.stats.distributions._
-import com.feynmanliang.optala.geneticalgorithm.{TournamentSelection, StochasticUniversalSampling, FitnessProportionateSelection, GeneticAlgorithm}
 import org.apache.commons.math3.random.MersenneTwister
 import org.scalatest._
 
@@ -31,29 +30,6 @@ class GeneticAlgorithmSuite extends FunSpec {
       }
       it("respects the bounds") {
         assert(init.population.map(_.point).forall(x => all((lb :<= x) :& (x :<= ub))))
-      }
-    }
-
-    describe("selectParents") {
-      val init = ga.initialize(f, lb, ub, popSize)
-
-      for {
-        strategy <- List(FitnessProportionateSelection, StochasticUniversalSampling, TournamentSelection(0.5))
-      } {
-        describe(s"$strategy") {
-          it("selects the number of specified parents") {
-            assert(ga.selectParents(init.population, strategy, 10).size === 10)
-          }
-          it("samples with replacement") {
-            val parents = ga.selectParents(init.population, strategy, popSize*2)
-            assert(parents.toSet.size <= (parents.size + 1) / 2)
-          }
-          it("selects individuals with higher than average fitness") {
-            val selected = ga.selectParents(init.population, strategy, popSize*2)
-            val selectedAvgFitness = selected.map(_.fitness).sum / selected.size.toDouble
-            assert(selectedAvgFitness >= init.averageFitness)
-          }
-        }
       }
     }
 
@@ -87,7 +63,7 @@ class GeneticAlgorithmSuite extends FunSpec {
     describe("when run on six-hump camelback function (6HCF)") {
       val result = ga.minimize(f, lb, ub, popSize=popSize, eliteCount=2, xoverFrac=0.8, seed=Some(seed))
       it("monotonically decreases the best point's objective") {
-        assert(result.stateTrace.map(_.bestPoint.objVal).sliding(2).forall(x => x.head >= x(1)))
+        assert(result.stateTrace.map(_.bestIndividual.objVal).sliding(2).forall(x => x.head >= x(1)))
       }
       it("decreases average objective value over all population") {
         val avgObjTrace = result.stateTrace.map(_.averageObjVal)
@@ -96,6 +72,44 @@ class GeneticAlgorithmSuite extends FunSpec {
       it(s"terminates after evaluating objective function $maxObjEvals times") {
         // assumes each iteration evaluates objective less that 0.2*maxObjectiveEvals
         assert(result.numObjEval <= (maxObjEvals*1.2).toInt)
+      }
+    }
+  }
+  describe("SelectionStrategy") {
+    val seed = 42
+    implicit val randBasis = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(seed)))
+
+    val f: Vector[Double] => Double = v => {
+      val x = v(0)
+      val y = v(1)
+      (4D - 2.1D*pow(x,2) + (1D/3D)*pow(x,4))*pow(x,2) + x*y + (4D*pow(y,2) - 4D)*pow(y,2)
+    }
+    val lb = DenseVector(-2D, -1D)
+    val ub = DenseVector(2D, 1D)
+    val popSize = 20
+    val maxObjEvals = 1000
+    val ga = new GeneticAlgorithm(maxObjectiveEvals = maxObjEvals)
+
+    describe("selectParents") {
+      val init = ga.initialize(f, lb, ub, popSize)
+
+      for {
+        strategy <- List(FitnessProportionateSelection, StochasticUniversalSampling, TournamentSelection(0.5))
+      } {
+        describe(s"$strategy") {
+          it("selects the number of specified parents") {
+            assert(strategy.selectParents(init.population, 10).size === 10)
+          }
+          it("samples with replacement") {
+            val parents = strategy.selectParents(init.population, popSize*2)
+            assert(parents.toSet.size <= (parents.size + 1) / 2)
+          }
+          it("selects individuals with higher than average fitness") {
+            val selected = strategy.selectParents(init.population, popSize*2)
+            val selectedAvgFitness = selected.map(_.fitness).sum / selected.size.toDouble
+            assert(selectedAvgFitness >= init.averageFitness)
+          }
+        }
       }
     }
   }

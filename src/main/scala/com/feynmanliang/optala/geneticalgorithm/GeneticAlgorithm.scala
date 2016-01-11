@@ -1,33 +1,35 @@
 package com.feynmanliang.optala.geneticalgorithm
 
 import breeze.linalg._
-import breeze.numerics.ceil
 import breeze.stats.distributions._
 import com.feynmanliang.optala.{FunctionWithCounter, RunResult, Solution}
 import org.apache.commons.math3.random.MersenneTwister
 
 import scala.util.Random
 
-/** An individual representing a candidate solution within a population */
+/** An individual (i.e. a candidate `Solution`). */
 private[optala] case class Individual(
     override val f: Vector[Double] => Double,
     override val point: DenseVector[Double]) extends Solution(f, point) {
-  val fitness = -1D * objVal
+  val fitness = -1D * objVal // a GA maximizes fitness := -1*objVal <=> minimizes objVal
 }
 
-/** A population of `Individual`s representing a generation of a GA */
+/** A generation (i.e. iteration of a GA).
+  *
+  * @param population the individuals alive in this generation
+  */
 private[optala] case class Generation(population: Seq[Individual]) {
   def averageObjVal: Double = population.map(_.objVal).sum / population.size
   def averageFitness: Double = -1D * averageObjVal
-  val bestPoint = population.minBy(_.objVal)
+  val bestIndividual = population.minBy(_.objVal)
 }
 
-/** Results from a single GA run */
+/** Results from a run of a GA. */
 private[optala] case class GARunResult(
-  override val stateTrace: List[Generation],
-  override val numObjEval: Long,
-  override val numGradEval: Long) extends RunResult[Generation] {
-  override val bestSolution = stateTrace.maxBy(_.bestPoint.objVal).bestPoint
+    override val stateTrace: List[Generation],
+    override val numObjEval: Long,
+    override val numGradEval: Long) extends RunResult[Generation] {
+  override val bestSolution = stateTrace.maxBy(_.bestIndividual.objVal).bestIndividual
 }
 
 /** An implementation of the Genetic Algorithm (GA) optimization method.
@@ -73,7 +75,7 @@ class GeneticAlgorithm(
 
     val successors: Stream[Generation] = Stream.iterate(initGen) { gen =>
       val numParents = ((max(2*xoverCount, mutantCount)+1) / 2) * 2 // ensure even pairs for crossover
-      val parents = selectParents(gen.population, selectionStrategy, numParents)
+      val parents = selectionStrategy.selectParents(gen.population, numParents)
 
       val elites = gen.population.sortBy(_.objVal).take(eliteCount)
       val parentPairs = parents.grouped(2).map(x => (x.head, x(1))).toSeq
@@ -101,59 +103,6 @@ class GeneticAlgorithm(
       val x = (range.toDenseVector :* DenseVector.rand(n, Uniform(-.5D,.5D))) + center
       Individual(f, x)
     })
-  }
-
-  /** Selects parents for the successor generation
-    *
-    * @param pop population to choose parents from
-    * @param strategy parent selection strategy
-    * @param n number of parents to select
-    */
-  private[optala] def selectParents(
-      pop: Seq[Individual],
-      strategy: SelectionStrategy,
-      n: Int)(
-      implicit randBasis: RandBasis = Rand): Seq[Individual] = strategy match {
-
-    case FitnessProportionateSelection =>
-      val minFitness = -1D*pop.map(_.objVal).max
-      val dist = new Multinomial(Counter(pop.map(x => (x, -1D*x.objVal - minFitness + 1D))))
-      dist.sample(n)
-
-    case StochasticUniversalSampling =>
-      val minFitness = pop.map(_.fitness).min
-      // (individual, fitness normalized s.t. > 0)
-      val popNorm = pop.map { case individual =>
-        val normFitness =  individual.fitness - minFitness + 1D
-        (individual, normFitness)
-      }
-      val f = popNorm.map(_._2).sum
-      val stepSize = f / n
-      val popNormSortedWithCumSums = popNorm
-        .sortBy(-1D * _._2) // sort by descending fitness
-        .foldRight(List[(Individual,Double)]()) {  // calculate cumulative sums of normalized fitness
-          case ((individual, normFit), acc) =>
-            acc match {
-              case Nil => (individual, normFit) :: acc
-              case (_,cumFitness)::_ => (individual, normFit + cumFitness) :: acc
-            }
-        }
-        .reverse
-      val start = new Uniform(0, stepSize).sample()
-      (start to n*stepSize by stepSize).map { p =>
-        val (individual, _) = popNormSortedWithCumSums.dropWhile(_._2 < p).head
-        individual
-      }
-
-    case TournamentSelection(tournamentProp) =>
-      require(
-        0D <= tournamentProp && tournamentProp <= 1D,
-        s"tournament proportion must be in [0,1] but got $tournamentProp")
-      Seq.fill(n) {
-        Random.shuffle(pop)
-          .take(ceil(tournamentProp*pop.size).toInt)
-          .maxBy(_.fitness)
-      }
   }
 
   /** Crosses over pairs of parents by taking a random convex combination
@@ -193,8 +142,3 @@ class GeneticAlgorithm(
     }
   }
 }
-
-sealed trait SelectionStrategy
-case object FitnessProportionateSelection extends SelectionStrategy
-case object StochasticUniversalSampling extends SelectionStrategy
-case class TournamentSelection(tournamentProportion: Double) extends SelectionStrategy
