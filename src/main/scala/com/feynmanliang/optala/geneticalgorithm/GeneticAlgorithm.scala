@@ -3,7 +3,6 @@ package com.feynmanliang.optala.geneticalgorithm
 import breeze.linalg._
 import breeze.stats.distributions._
 import com.feynmanliang.optala.{FunctionWithCounter, RunResult, Solution}
-import org.apache.commons.math3.random.MersenneTwister
 
 import scala.util.Random
 
@@ -48,7 +47,6 @@ class GeneticAlgorithm(
     * @param selectionStrategy selection strategy
     * @param eliteCount elite count
     * @param xoverFrac crossover fraction
-    * @param seed random seed
     */
   def minimize(
       f: Vector[Double] => Double,
@@ -57,14 +55,7 @@ class GeneticAlgorithm(
       popSize: Int = 20,
       selectionStrategy: SelectionStrategy = FitnessProportionateSelection,
       eliteCount: Int = 2,
-      xoverFrac: Double = 0.8,
-      seed: Option[Long] = None): RunResult[Generation] = {
-    implicit val randBasis: RandBasis = seed match {
-      case Some(s) =>
-        Random.setSeed(s)
-        new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(s)))
-      case None => new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister()))
-    }
+      xoverFrac: Double = 0.8)(implicit randBasis: RandBasis): RunResult[Generation] = {
     val fCnt = new FunctionWithCounter(f)
 
     val xoverCount: Int = ((popSize - eliteCount) * xoverFrac).ceil.toInt

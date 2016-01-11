@@ -61,7 +61,7 @@ class GeneticAlgorithmSuite extends FunSpec {
     }
 
     describe("when run on six-hump camelback function (6HCF)") {
-      val result = ga.minimize(f, lb, ub, popSize=popSize, eliteCount=2, xoverFrac=0.8, seed=Some(seed))
+      val result = ga.minimize(f, lb, ub, popSize=popSize, eliteCount=2, xoverFrac=0.8)
       it("monotonically decreases the best point's objective") {
         assert(result.stateTrace.map(_.bestIndividual.objVal).sliding(2).forall(x => x.head >= x(1)))
       }
