@@ -13,21 +13,24 @@ import com.feynmanliang.optala._
 import com.feynmanliang.optala.examples.ExampleUtils._
 
 object GradientFreeExample {
-  // This is the 6 Hump Camel Function (6HCF)
+  // 6 Hump Camel Function (6HCF)
   val f: Vector[Double] => Double = v => {
     val x = v(0)
     val y = v(1)
     (4D - 2.1D * pow(x, 2) + (1D / 3D) * pow(x, 4)) * pow(x, 2) + x * y + (4D * pow(y, 2) - 4D) * pow(y, 2)
   }
-  // Optimized over the region -2 <= x <= 2, -1 <= y <= 1
+
+  // Feasible region: -2 <= x <= 2, -1 <= y <= 1
   val lb = DenseVector(-2D, -1D)
   val ub = DenseVector(2D, 1D)
 
-  // Optimal points (http://www.sfu.ca/~ssurjano/camel6.html)
+  // Global minima
   val xOpts = List(
     DenseVector(-0.089842, 0.712656),
     DenseVector(0.089842, -0.712656)
   )
+
+  // Local minima
   val localMinima = xOpts ++ List(
     DenseVector(-1.70361, 0.796084),
     DenseVector(-1.6071, -0.568651),
@@ -36,19 +39,22 @@ object GradientFreeExample {
     DenseVector(1.6071, 0.568651),
     DenseVector(1.70361, -0.796084)
   )
+
+  // Minimum objective value
   val fOpt = -1.0316284534898774
 
+  // Random seeds
   val seed = 42L
   implicit val rand = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(seed)))
 
   def main(args: Array[String]) {
-    // Nelder-Mead Examples
+    // Nelder-Mead
     nmExample()
     nmObjEvalEff()
     nmConvRate()
     nmPerf()
 
-    // Genetic Algorithm Examples
+    // Genetic Algorithm
     gaExample()
     gaObjEvalEff()
     gaPerfPopSize()
@@ -56,6 +62,7 @@ object GradientFreeExample {
     gaPerfXoverFrac()
     gaPerfSelection()
   }
+
   def nmExample(): Unit = {
     println(s"===Optimizing 6HCF using Nedler-Mead===")
     val nmOpt = new NelderMead(maxObjEvals = 1000, maxIter = Int.MaxValue, tol = 0D)
@@ -107,7 +114,6 @@ object GradientFreeExample {
         DenseMatrix(numObjEval)
       }): _*)
     }
-
     experimentWithResults("Nelder-Mead convergence rate, varying n", "nm-conv-rate-vary-n.csv") {
       val nmOpt = new NelderMead(maxObjEvals = Int.MaxValue, maxIter = Int.MaxValue, tol = 1E-6)
       DenseMatrix.horzcat((for {
@@ -134,7 +140,6 @@ object GradientFreeExample {
       val fStar = xStar.objVal
       val bias = fStar - fOpt
       val closestToGlobal = xOpts.contains(localMinima.minBy(xMin => norm(xMin - xStar.point)))
-
       DenseMatrix(n.toDouble, fStar, bias, if (closestToGlobal) 1D else 0D)
     }): _*)
   }
@@ -195,7 +200,6 @@ object GradientFreeExample {
         val (xStar, fStar) = (best.point, best.objVal)
         val bias = fStar - fOpt
         val closestToGlobal = xOpts.contains(localMinima.minBy(xMin => norm(xMin - xStar)))
-
         DenseMatrix(popSize.toDouble, fStar, bias, if (closestToGlobal) 1D else 0D)
       }): _*)
     }
@@ -246,7 +250,6 @@ object GradientFreeExample {
         val (xStar, fStar) = (best.point, best.objVal)
         val bias = fStar - fOpt
         val closestToGlobal = xOpts.contains(localMinima.minBy(xMin => norm(xMin - xStar)))
-
         DenseMatrix(eliteCount.toDouble, fStar, bias, if (closestToGlobal) 1D else 0D)
       }): _*)
     }
@@ -291,7 +294,6 @@ object GradientFreeExample {
           val (xStar, fStar) = (best.point, best.objVal)
           val bias = fStar - fOpt
           val closestToGlobal = xOpts.contains(localMinima.minBy(xMin => norm(xMin - xStar)))
-
           DenseMatrix(xoverFrac.toDouble, fStar, bias, if (closestToGlobal) 1D else 0D)
         }): _*)
       }
@@ -309,7 +311,6 @@ object GradientFreeExample {
           val (xStar, fStar) = (best.point, best.objVal)
           val bias = fStar - fOpt
           val closestToGlobal = xOpts.contains(localMinima.minBy(xMin => norm(xMin - xStar)))
-
           DenseMatrix(xoverFrac.toDouble, fStar, bias, if (closestToGlobal) 1D else 0D)
         }): _*)
       }
@@ -321,20 +322,16 @@ object GradientFreeExample {
       val popSize = 20
       val eliteCount = 2
       val xoverFrac = 0.8
-
-      val schemes = List(FitnessProportionateSelection, StochasticUniversalSampling)
+      val strategies = List(FitnessProportionateSelection, StochasticUniversalSampling)
       DenseMatrix.horzcat((for {
-        i <- schemes.indices
+        i <- strategies.indices
         _ <- 0 until 1000
       } yield {
-        val scheme = schemes(i)
-
-        val result = ga.minimize(f, lb, ub, popSize, scheme, eliteCount, xoverFrac, None)
+        val result = ga.minimize(f, lb, ub, popSize, strategies(i), eliteCount, xoverFrac, None)
         val best = result.bestSolution
         val (xStar, fStar) = (best.point, best.objVal)
         val bias = fStar - fOpt
         val closestToGlobal = xOpts.contains(localMinima.minBy(xMin => norm(xMin - xStar)))
-
         DenseMatrix(i.toDouble, fStar, bias, if (closestToGlobal) 1D else 0D)
       }): _*)
     }
@@ -344,7 +341,6 @@ object GradientFreeExample {
       val popSize = 20
       val eliteCount = 2
       val xoverFrac = 0.8
-
       DenseMatrix.horzcat((for {
         tournamentProb <- 0.05D until 0.95D by 0.05D
         _ <- 0 until 1000
@@ -354,7 +350,6 @@ object GradientFreeExample {
         val (xStar, fStar) = (best.point, best.objVal)
         val bias = fStar - fOpt
         val closestToGlobal = xOpts.contains(localMinima.minBy(xMin => norm(xMin - xStar)))
-
         DenseMatrix(tournamentProb.toDouble, fStar, bias, if (closestToGlobal) 1D else 0D)
       }): _*)
     }
