@@ -41,7 +41,7 @@ object GradientFreeExample {
   // Minimum objective value
   val fOpt = -1.0316284534898774
 
-  val SEED = 42L // random seed
+  val SEED = 43L // random seed
   val NUM_TRIALS = 3
   val MAX_OBJ_EVALS = 100
 

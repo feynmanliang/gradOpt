@@ -47,6 +47,7 @@ class GeneticAlgorithm(
     * @param selectionStrategy selection strategy
     * @param eliteCount elite count
     * @param xoverFrac crossover fraction
+    * @param randBasis seed for Breeze random number generator
     */
   def minimize(
       f: Vector[Double] => Double,
@@ -55,7 +56,7 @@ class GeneticAlgorithm(
       popSize: Int = 20,
       selectionStrategy: SelectionStrategy = FitnessProportionateSelection,
       eliteCount: Int = 2,
-      xoverFrac: Double = 0.8)(implicit randBasis: RandBasis): RunResult[Generation] = {
+      xoverFrac: Double = 0.8)(implicit randBasis: RandBasis = Rand): RunResult[Generation] = {
     val fCnt = new FunctionWithCounter(f)
 
     val xoverCount: Int = ((popSize - eliteCount) * xoverFrac).ceil.toInt
@@ -84,7 +85,7 @@ class GeneticAlgorithm(
   /** Initializes a population to randomly lie within the hypercube given by `lb` and `ub`. */
   private[optala] def initialize(
       f: Vector[Double] => Double, lb: DenseVector[Double], ub: DenseVector[Double], popSize: Int)(
-      implicit randBasis: RandBasis = Rand): Generation = {
+      implicit randBasis: RandBasis): Generation = {
     val n = lb.size
     val center = (ub + lb) / 2D
     val range = ub - lb
@@ -99,7 +100,7 @@ class GeneticAlgorithm(
     * @param parentPairs parent pairs to cross over
     */
   private[optala] def crossOver(f: Vector[Double] => Double, parentPairs: Seq[(Individual, Individual)])(
-      implicit randBasis: RandBasis = Rand): Seq[Individual] = {
+      implicit randBasis: RandBasis): Seq[Individual] = {
     val dist = Uniform(0D, 1D)
     parentPairs.map { p =>
       val t = dist.sample()
@@ -115,7 +116,8 @@ class GeneticAlgorithm(
       ub: DenseVector[Double],
       parents: Seq[Solution],
       mutantCount: Int)(
-      implicit randBasis: RandBasis = Rand): Seq[Individual] = {
+      implicit randBasis: RandBasis): Seq[Individual] = {
+    Random.setSeed(randBasis.randInt.sample())
     Random.shuffle(parents).take(mutantCount).map { x =>
       val delta = DenseVector.rand[Double](x.point.size, Gaussian(0, 1))
       val child = max(min(x.point + delta, ub), lb)

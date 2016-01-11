@@ -19,7 +19,11 @@ private[examples] object ExampleUtils {
     csvwrite(resultsFile, results)
   }
 
-  /** Creates a random `n` point simplex over [-2,2] x [-1,1]. */
+  /** Creates a random `n` point simplex over [-2,2] x [-1,1].
+    * @param n number of simplex vertices
+    * @param f objective function
+    * @param rand seed for Breeze random number generator
+    */
   def createRandomSimplex(n: Int, f: Vector[Double] => Double)(
       implicit rand: RandBasis): Simplex = Simplex(Seq.fill(n) {
     val simplexPoint = DenseVector(Uniform(-2D, 2D)(rand).sample(), Uniform(-1D, 1D)(rand).sample())
