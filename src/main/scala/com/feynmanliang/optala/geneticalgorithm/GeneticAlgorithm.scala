@@ -1,10 +1,11 @@
 package com.feynmanliang.optala.geneticalgorithm
 
+import scala.util.Random
+
 import breeze.linalg._
 import breeze.stats.distributions._
-import com.feynmanliang.optala.{FunctionWithCounter, RunResult, Solution}
 
-import scala.util.Random
+import com.feynmanliang.optala.{FunctionWithCounter, RunResult, Solution}
 
 /** An individual (i.e. a candidate `Solution`). */
 private[optala] case class Individual(

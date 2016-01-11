@@ -1,10 +1,10 @@
 package com.feynmanliang.optala.geneticalgorithm
 
+import scala.util.Random
+
 import breeze.linalg.Counter
 import breeze.numerics.ceil
 import breeze.stats.distributions.{Multinomial, RandBasis, Uniform}
-
-import scala.util.Random
 
 sealed trait SelectionStrategy {
   /** Selects parents for the next generation.

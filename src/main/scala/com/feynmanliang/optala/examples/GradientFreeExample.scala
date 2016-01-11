@@ -13,7 +13,7 @@ import com.feynmanliang.optala.neldermead._
 
 object GradientFreeExample {
   val SEED = 42L // random seed
-  val NUM_TRIALS = 100 // TODO: change to 1000
+  val NUM_TRIALS = 1000
   val MAX_OBJ_EVALS = 1000
 
   // 6 Hump Camel Function (6HCF)
@@ -48,18 +48,18 @@ object GradientFreeExample {
 
   def main(args: Array[String]) {
     // Nelder-Mead
-//    nmExample()
-//    nmObjEvalEff()
-//    nmConvRate()
-//    nmPerf()
+    nmExample()
+    nmObjEvalEff()
+    nmConvRate()
+    nmPerf()
 
     // Genetic Algorithm
-//    gaExample()
-//    gaObjEvalEff()
-//    gaPerfPopSize()
+    gaExample()
+    gaObjEvalEff()
+    gaPerfPopSize()
     gaPerfEliteCount()
-//    gaPerfXoverFrac()
-//    gaPerfSelection()
+    gaPerfXoverFrac()
+    gaPerfSelection()
   }
 
   def nmExample(): Unit = {

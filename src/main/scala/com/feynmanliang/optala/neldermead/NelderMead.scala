@@ -1,6 +1,7 @@
 package com.feynmanliang.optala.neldermead
 
 import breeze.linalg.{DenseVector, Vector, norm}
+
 import com.feynmanliang.optala.{FunctionWithCounter, RunResult, Solution}
 
 /** A `n+1` point simplex */
