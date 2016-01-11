@@ -5,12 +5,17 @@ import java.io.File
 import breeze.linalg._
 import breeze.numerics.pow
 import breeze.stats.distributions.{RandBasis, ThreadLocalRandomGenerator}
-import com.feynmanliang.optala.examples.ExampleUtils._
-import com.feynmanliang.optala.geneticalgorithm.{FitnessProportionateSelection, GeneticAlgorithm, StochasticUniversalSampling, TournamentSelection}
-import com.feynmanliang.optala.neldermead.{NelderMead, Simplex}
 import org.apache.commons.math3.random.MersenneTwister
 
+import com.feynmanliang.optala.examples.ExampleUtils._
+import com.feynmanliang.optala.geneticalgorithm._
+import com.feynmanliang.optala.neldermead._
+
 object GradientFreeExample {
+  val SEED = 42L // random seed
+  val NUM_TRIALS = 1000
+  val MAX_OBJ_EVALS = 1000
+
   // 6 Hump Camel Function (6HCF)
   val f: Vector[Double] => Double = v => {
     val x = v(0)
@@ -41,10 +46,6 @@ object GradientFreeExample {
   // Minimum objective value
   val fOpt = -1.0316284534898774
 
-  val SEED = 43L // random seed
-  val NUM_TRIALS = 3
-  val MAX_OBJ_EVALS = 100
-
   def main(args: Array[String]) {
     // Nelder-Mead
     nmExample()
@@ -68,7 +69,6 @@ object GradientFreeExample {
     val nmOpt = new NelderMead(maxObjEvals = MAX_OBJ_EVALS, maxIter = Int.MaxValue, tol = 0D)
     val initialSimplex: Simplex = createRandomSimplex(n = 8, f)(rand)
     val result = nmOpt.minimize(f, initialSimplex)
-    val xStar = result.bestSolution
 
     // columns = (x1,y1,x2,y2,...), rows = iterations
     val stateTrace = DenseMatrix.vertcat(result.stateTrace.map { simplex =>
@@ -78,18 +78,14 @@ object GradientFreeExample {
     csvwrite(stateTraceFile, stateTrace)
     println(s"Wrote stateTrace to $stateTraceFile")
 
-    // objective value at simplex centroid
-    val objTrace = DenseMatrix(result.stateTrace.map { s =>
-      val candidates = s.solutionsByObj.map(_.point)
-      f(candidates.reduce(_+_) / candidates.size.toDouble)
-    }: _*)
+    // objective values at simplex centroid
+    val objTrace = DenseMatrix(result.stateTrace.map(simplex => f(simplex.centroid)): _*)
     val objTraceFile = new File("results/nm-objTrace.csv")
     csvwrite(objTraceFile, objTrace)
     println(s"Wrote objTrace to $objTraceFile")
   }
 
-  def nmObjEvalEff(): Unit = experimentWithResults("Nelder-Mead obj eval efficiency, n=8", SEED, "nm-obj-eval-eff.csv") { seedRB =>
-    val seedRB = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(SEED)))
+  def nmObjEvalEff(): Unit = runWithResults("Nelder-Mead num obj eval, n=8", SEED, "nm-obj-eval-eff.csv") { seedRB =>
     val nmOpt = new NelderMead(maxObjEvals = MAX_OBJ_EVALS, maxIter = Int.MaxValue, tol = 0D)
     DenseMatrix.horzcat((for {
       _ <- 0 until NUM_TRIALS
@@ -104,7 +100,8 @@ object GradientFreeExample {
   }
 
   def nmConvRate(): Unit = {
-    experimentWithResults("Nelder-Mead convergence rate, n=8", SEED, "nm-conv-rate.csv") { seedRB =>
+    runWithResults("Nelder-Mead convergence rate, n=8", SEED, "nm-conv-rate.csv") { seedRB =>
+      // no limit on objective evals, terminate when delta < 1E-6
       val nmOpt = new NelderMead(maxObjEvals = Int.MaxValue, maxIter = Int.MaxValue, tol = 1E-6)
       DenseMatrix.horzcat((for {
         _ <- 0 until NUM_TRIALS
@@ -117,8 +114,8 @@ object GradientFreeExample {
         DenseMatrix(numObjEval)
       }): _*)
     }
-    experimentWithResults("Nelder-Mead convergence rate, varying n", SEED, "nm-conv-rate-vary-n.csv") { seedRB =>
-      val seedRB = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(SEED)))
+    runWithResults("Nelder-Mead convergence rate, varying n", SEED, "nm-conv-rate-vary-n.csv") { seedRB =>
+      // no limit on objective evals, terminate when delta < 1E-6
       val nmOpt = new NelderMead(maxObjEvals = Int.MaxValue, maxIter = Int.MaxValue, tol = 1E-6)
       DenseMatrix.horzcat((for {
         _ <- 0 until NUM_TRIALS
@@ -134,8 +131,7 @@ object GradientFreeExample {
     }
   }
 
-  def nmPerf(): Unit = experimentWithResults(s"Nelder-Mead number simplex points", SEED, "nm-vary-n.csv") { seedRB =>
-    val seedRB = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(SEED)))
+  def nmPerf(): Unit = runWithResults(s"Nelder-Mead number simplex points", SEED, "nm-vary-n.csv") { seedRB =>
     val nmOpt = new NelderMead(maxObjEvals = MAX_OBJ_EVALS, maxIter = Int.MaxValue, tol = 0D)
     DenseMatrix.horzcat((for {
       _ <- 0 until NUM_TRIALS
@@ -164,8 +160,6 @@ object GradientFreeExample {
       StochasticUniversalSampling,
       eliteCount = 2,
       xoverFrac = 0.8)(rand)
-    val best = result.bestSolution
-    val (xstar, fstar) = (best.point, best.objVal)
 
     // columns = (x1,y1,x2,y2,...), rows = iterations
     val stateTrace = DenseMatrix.vertcat(result.stateTrace.map { gen =>
@@ -184,7 +178,7 @@ object GradientFreeExample {
     println(s"Wrote objTraces to $objTraceFile")
   }
 
-  def gaObjEvalEff(): Unit = experimentWithResults("GA obj eval efficiency", SEED, "ga-obj-eval-eff.csv") { seedRB =>
+  def gaObjEvalEff(): Unit = runWithResults("GA obj eval efficiency", SEED, "ga-obj-eval-eff.csv") { seedRB =>
     val ga = new GeneticAlgorithm(maxObjectiveEvals = MAX_OBJ_EVALS, maxIter = Int.MaxValue)
     DenseMatrix.horzcat((for {
       _ <- 0 until NUM_TRIALS
@@ -203,7 +197,7 @@ object GradientFreeExample {
   }
 
   def gaPerfPopSize(): Unit = {
-    experimentWithResults("GA population size", SEED, "ga-pop-size.csv") { seedRB =>
+    runWithResults("GA population size", SEED, "ga-pop-size.csv") { seedRB =>
       val ga = new GeneticAlgorithm(maxObjectiveEvals = MAX_OBJ_EVALS, maxIter = Int.MaxValue)
       DenseMatrix.horzcat((for {
         _ <- 0 until NUM_TRIALS
@@ -224,7 +218,7 @@ object GradientFreeExample {
         DenseMatrix(popSize.toDouble, fStar, bias, if (closestToGlobal) 1D else 0D)
       }): _*)
     }
-    experimentWithResults("GA population size - num iters", SEED, "ga-pop-size-num-iters.csv") { seedRB =>
+    runWithResults("GA population size - num iters", SEED, "ga-pop-size-num-iters.csv") { seedRB =>
       val ga = new GeneticAlgorithm(maxObjectiveEvals = MAX_OBJ_EVALS, maxIter = Int.MaxValue)
       val seed = seedRB.randInt.sample()
       DenseMatrix.horzcat((for {
@@ -244,7 +238,7 @@ object GradientFreeExample {
 
     // Save final states to show budget exhausted before convergence
     // columns = (popSize, x1,y1,x2,y2,...), rows = observations
-    experimentWithResults("GA population size - states", SEED, "ga-pop-size-final-states.csv") { seedRB =>
+    runWithResults("GA population size - states", SEED, "ga-pop-size-final-states.csv") { seedRB =>
       val ga = new GeneticAlgorithm(maxObjectiveEvals = MAX_OBJ_EVALS, maxIter = Int.MaxValue)
       val seed = seedRB.randInt.sample()
       DenseMatrix.horzcat((for {
@@ -264,7 +258,7 @@ object GradientFreeExample {
   }
 
   def gaPerfEliteCount(): Unit = {
-    experimentWithResults("GA elite count", SEED, "ga-elite-count.csv") { seedRB =>
+    runWithResults("GA elite count", SEED, "ga-elite-count.csv") { seedRB =>
       val ga = new GeneticAlgorithm(maxObjectiveEvals = MAX_OBJ_EVALS, maxIter = Int.MaxValue)
       DenseMatrix.horzcat((for {
         _ <- 0 until NUM_TRIALS
@@ -285,7 +279,7 @@ object GradientFreeExample {
         DenseMatrix(eliteCount.toDouble, fStar, bias, if (closestToGlobal) 1D else 0D)
       }): _*)
     }
-    experimentWithResults("GA elite count - 0 elite count => no monotonicity", SEED, "ga-elite-count-0.csv") { seedRB =>
+    runWithResults("GA elite count - 0 elite count => no monotonicity", SEED, "ga-elite-count-0.csv") { seedRB =>
       val ga = new GeneticAlgorithm(maxObjectiveEvals = MAX_OBJ_EVALS, maxIter = Int.MaxValue)
       val seed = seedRB.randInt.sample()
       val rand = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(seed)))
@@ -298,7 +292,7 @@ object GradientFreeExample {
       //min population objective value
       DenseMatrix(result.stateTrace.map(_.bestIndividual.objVal): _*)
     }
-    experimentWithResults("GA elite count - num iters", SEED, "ga-elite-count-num-iters.csv") { seedRB =>
+    runWithResults("GA elite count - num iters", SEED, "ga-elite-count-num-iters.csv") { seedRB =>
       val ga = new GeneticAlgorithm(maxObjectiveEvals = MAX_OBJ_EVALS, maxIter = Int.MaxValue)
       val seed = seedRB.randInt.sample()
       val rand = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(seed)))
@@ -318,7 +312,7 @@ object GradientFreeExample {
   }
 
   def gaPerfXoverFrac(): Unit = {
-    experimentWithResults("GA xover frac", SEED, "ga-xover-frac.csv") { seedRB =>
+    runWithResults("GA xover frac", SEED, "ga-xover-frac.csv") { seedRB =>
       val ga = new GeneticAlgorithm(maxObjectiveEvals = MAX_OBJ_EVALS, maxIter = Int.MaxValue)
       DenseMatrix.horzcat((for {
         _ <- 0 until NUM_TRIALS
@@ -339,7 +333,7 @@ object GradientFreeExample {
         DenseMatrix(xoverFrac.toDouble, fStar, bias, if (closestToGlobal) 1D else 0D)
       }): _*)
     }
-    experimentWithResults("GA xover frac - noElite", SEED, "ga-xover-frac-noElite.csv") { seedRB =>
+    runWithResults("GA xover frac - noElite", SEED, "ga-xover-frac-noElite.csv") { seedRB =>
       val ga = new GeneticAlgorithm(maxObjectiveEvals = MAX_OBJ_EVALS, maxIter = Int.MaxValue)
       DenseMatrix.horzcat((for {
         _ <- 0 until NUM_TRIALS
@@ -363,7 +357,7 @@ object GradientFreeExample {
   }
 
   def gaPerfSelection(): Unit = {
-    experimentWithResults("GA selection schemes: non-tournament", SEED, "ga-selection.csv") { seedRB =>
+    runWithResults("GA selection schemes: non-tournament", SEED, "ga-selection.csv") { seedRB =>
       val ga = new GeneticAlgorithm(maxObjectiveEvals = MAX_OBJ_EVALS, maxIter = Int.MaxValue)
       val strategies = List(FitnessProportionateSelection, StochasticUniversalSampling)
       DenseMatrix.horzcat((for {
@@ -385,7 +379,7 @@ object GradientFreeExample {
         DenseMatrix(i.toDouble, fStar, bias, if (closestToGlobal) 1D else 0D)
       }): _*)
     }
-    experimentWithResults("GA selection schemes: tournament", SEED, "ga-selection-tournament.csv") { seedRB =>
+    runWithResults("GA selection schemes: tournament", SEED, "ga-selection-tournament.csv") { seedRB =>
       val ga = new GeneticAlgorithm(maxObjectiveEvals = MAX_OBJ_EVALS, maxIter = Int.MaxValue)
       DenseMatrix.horzcat((for {
         _ <- 0 until NUM_TRIALS

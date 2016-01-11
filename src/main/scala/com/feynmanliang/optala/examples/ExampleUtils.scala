@@ -3,15 +3,16 @@ package com.feynmanliang.optala.examples
 import java.io.File
 
 import breeze.linalg.{DenseVector, Matrix, Vector, csvwrite}
-import breeze.stats.distributions.{ThreadLocalRandomGenerator, RandBasis, Uniform}
+import breeze.stats.distributions.{RandBasis, ThreadLocalRandomGenerator, Uniform}
+import org.apache.commons.math3.random.MersenneTwister
+
 import com.feynmanliang.optala.Solution
 import com.feynmanliang.optala.neldermead.Simplex
-import org.apache.commons.math3.random.MersenneTwister
 
 /** Utility functions for example code and experiments. */
 private[examples] object ExampleUtils {
   /** Runs an experiment and writes the results to a CSV. */
-  def experimentWithResults(
+  def runWithResults(
       experimentName: String,
       seed: Long,
       resultFName: String)(results: RandBasis => Matrix[Double]) = {
