@@ -9,7 +9,7 @@ import com.feynmanliang.optala.GradientAlgorithm._
 import com.feynmanliang.optala.GradientOptimizer
 import com.feynmanliang.optala.LineSearchConfig._
 
-object SteepestDescentExample {
+object ScalarArgumentExample {
   def main(args: Array[String]) {
     val f = (x: Double) => pow(x, 4) * cos(pow(x, -1)) + 2D * pow(x, 4)
     val df = (x: Double) => 8D * pow(x, 3) + 4D * pow(x, 3) * cos(pow(x, -1)) - pow(x, 4) * sin(pow(x, -1))

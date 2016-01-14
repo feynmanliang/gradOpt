@@ -5,14 +5,19 @@ import java.io.File
 import scala.util.{Failure, Success}
 
 import breeze.linalg.{DenseVector, DenseMatrix, csvread}
+import breeze.stats.distributions.{RandBasis, ThreadLocalRandomGenerator}
+import org.apache.commons.math3.random.MersenneTwister
 
 import com.feynmanliang.optala.GradientOptimizer
 import com.feynmanliang.optala.GradientAlgorithm._
 import com.feynmanliang.optala.LineSearchConfig._
 
 object QuadraticFormExample {
+  val SEED = 42L
+  implicit val rand = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(SEED)))
+
   def main(args: Array[String]) {
-    val gradOpt = new GradientOptimizer(maxSteps = 1000, tol = 1E-6)
+    val gradOpt = new GradientOptimizer(maxSteps = 100000, tol = 1E-6)
     for {
       lsAlgo <- List(Exact, CubicInterpolation)
     } yield {
