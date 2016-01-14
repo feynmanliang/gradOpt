@@ -17,13 +17,25 @@ private[optala] case class GradientBasedRunResult (
   override val bestSolution = stateTrace.minBy(_.objVal)
 }
 
+/** Methods for minimizing objective functions with analytical gradients as well as quadratic forms.
+  *
+  * @param maxSteps maximum number of steps before termination
+  * @param tol defines convergence when norm(gradient) < tol
+  */
 class GradientOptimizer(
     var maxSteps: Int = 50000,
     var tol: Double = 1E-6) {
   import com.feynmanliang.optala.GradientAlgorithm._
   import com.feynmanliang.optala.LineSearchConfig._
 
-  /** Minimizes a quadratic form 0.5 x'Ax - b'x using exact step size */
+  /** Minimizes a quadratic form 0.5 x'Ax - b'x.
+    *
+    * @param A hessian
+    * @param b gradient
+    * @param x0 starting point
+    * @param gradientAlgorithm algorithm to use for choosing step size
+    * @param lineSearchConfig algorithm to use for choosing step direction
+    */
   def minQuadraticForm(
       A: Matrix[Double],
       b: Vector[Double],
@@ -51,7 +63,14 @@ class GradientOptimizer(
     }
   }
 
-  // Overload which vectorizes scalar-valued functions.
+  /** Overload of `minimize` for accepting scalar-argument functions.
+    *
+    * @param f scalar argument function
+    * @param df derivative of f
+    * @param x0 starting point
+    * @param gradientAlgorithm algorithm to use for choosing step size
+    * @param lineSearchConfig algorithm to use for choosing step direction
+    */
   def minimize(
       f: Double => Double,
       df: Double => Double,
@@ -69,10 +88,14 @@ class GradientOptimizer(
     minimize(vecF, vecDf, DenseVector(x0), gradientAlgorithm, lineSearchConfig)
   }
 
-  /**
-  * Minimize a convex function `f` with derivative `df` and initial
-  * guess `x0`.
-  */
+  /** Minimize a smooth convex function.
+    *
+    * @param f objective function
+    * @param df gradient
+    * @param x0 starting point
+    * @param gradientAlgorithm algorithm to use for choosing step size
+    * @param lineSearchConfig algorithm to use for choosing step direction
+    */
   def minimize(
       f: Vector[Double] => Double,
       df: Vector[Double] => Vector[Double],
@@ -100,7 +123,6 @@ class GradientOptimizer(
     }
   }
 
-  /** Steepest Descent */
   private def steepestDescent(
       lineSearch: (Vector[Double], Vector[Double]) => Option[Double],
       f: Vector[Double] => Double,
@@ -142,7 +164,7 @@ class GradientOptimizer(
           case Some(alpha) =>
             val newX = x + alpha * p
             val newGrad = df(newX).toDenseVector
-            val beta = (newGrad dot newGrad) / (grad dot grad)
+            val beta = (newGrad dot newGrad) / (grad dot grad) // Fletcher-Reeves rule
             val newP = -newGrad + beta * p
             currSolution #:: improve(newX, newGrad, newP)
           case None => currSolution #:: Stream.Empty

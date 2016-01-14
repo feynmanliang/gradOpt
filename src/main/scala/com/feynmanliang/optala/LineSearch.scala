@@ -3,9 +3,18 @@ package com.feynmanliang.optala
 import breeze.linalg._
 import breeze.numerics._
 
-/**
-  * A bracketing interval where f(x + mid'*df) < f(x + lb'*df) and f(x + mid'*df) < f(x + ub'*df),
-  * ensuring a minimum is within the bracketed interval.
+/** An interval bracketing a step size which contains the line search minima.
+  *
+  * Note that a starting point, search direction, and objective function are implicit i.e. fMid = f(x + mid*p) where
+  * "f" is the objective function, "x" is the starting point, and "p" is the search direction.
+  *
+  * The BracketInterval must satisfy lb <= mid, mid <= ub, fLb >= fMid and fMid =< fUB.
+  * @param lb lower bound on step size
+  * @param mid middle point on step size
+  * @param ub upper bound on step size
+  * @param fLb objective value at step size lower bound
+  * @param fMid objective value at step size mid point
+  * @param fUb objective value at step size upper bound
   */
 private[optala] case class BracketInterval(
     lb: Double,
@@ -21,6 +30,7 @@ private[optala] case class BracketInterval(
 }
 
 object BracketInterval {
+  /** Factory method for instantiating `Solution`s */
   def apply(phi: Double => Double, lb: Double, mid: Double, ub: Double): BracketInterval =
     BracketInterval(lb, mid, ub, phi(lb), phi(mid), phi(ub))
 }
@@ -29,25 +39,30 @@ object LineSearch {
   private val GOLD = 1.61803398875
   private val EPS_MIN = 1E-20
 
-  /**
-    * Brackets a step size `alpha` such that for some value within the bracket
-    * the restriction of `f` to the ray `f(x + alpha*p)` is guaranteed to attain
+  /** Brackets a step size "alpha" such that for some step size within the bracket
+    * the restriction of f to the ray f(x + alpha*p) is guaranteed to attain
     * a minimum.
+    * @param f objective function
+    * @param df gradient
+    * @param x starting point
+    * @param p line search direction
+    * @param initialBracketSize initial guess for bracket size
+    * @param maxBracketIters maximum number of bracketing iterations before failing
+    * @return Some(BracketInterval) if success, None otherwise
     */
   private[optala] def bracket(
       f: Vector[Double] => Double,
       df: Vector[Double] => Vector[Double],
       x: Vector[Double],
       p: Vector[Double],
-      initialBracketRange: Double = 100D,
+      initialBracketSize: Double = 100D,
       maxBracketIters: Int = 5000): Option[BracketInterval] = {
     val (phi, dPhi) = restrictRay(f, df, x, p)
-//    val initBracket = BracketInterval(phi, -1E-8, 0D, 1E-8)
-    val initBracket = BracketInterval(phi, 0, initialBracketRange, (1 + GOLD) * initialBracketRange)
+    val initBracket = BracketInterval(phi, 0, initialBracketSize, (1 + GOLD) * initialBracketSize)
     if (norm(dPhi(0)) == 0.0D) {
       Some(initBracket)
     } else {
-      /** A stream of successively expanding brackets until a valid bracket is found */
+      /** An infinite stream of successively expanding brackets. */
       def nextBracket(currBracket: BracketInterval): Stream[BracketInterval] = currBracket match {
         case BracketInterval(lb, mid, ub, fLb, fMid, fUb) =>
           val newLb = if (fMid < fLb) lb else lb + (lb - mid)
@@ -60,11 +75,16 @@ object LineSearch {
     }
   }
 
-  /**
-  * Performs a line search for x' = x + a*p within a bracketing interval to determine step size.
-  * Returns the value `x` which minimizes `f` along the line search. The chosen step size
-  * satisfies the Strong Wolfe Conditions.
-  */
+  /** Performs a bracketing line search along phi(a) = f(x + a*p) to determine a step size satisfying Strong Wolfe
+    * Conditions.
+    * @param f objective function
+    * @param df gradient
+    * @param x initial point
+    * @param p line search direction
+    * @param c1 Wolfe condition C1 constant
+    * @param c2 Wolfe condition C2 constant
+    * @return Some(alpha) of the step size satisfying Strong Wolfe Conditions if success, None otherwise
+    */
   def chooseStepSize(
       f: Vector[Double] => Double,
       df: Vector[Double] => Vector[Double],
@@ -73,7 +93,7 @@ object LineSearch {
       c1: Double = 1E-4,
       c2: Double = 0.9): Option[Double] = LineSearch.bracket(f, df, x, p) match {
     case _ if norm(p.toDenseVector) < EPS_MIN => Some(0D) // degenerate ray direction
-    case None => None // unable to bracket a minimum
+    case None => None // FAIL: unable to bracket a minimum
     case Some(bracket) =>
       val aMax = bracket.size
       val initAlphaBracketSize = EPS_MIN // initial size for bracketing of alpha satisfying Strong Wolfe Conditions
@@ -82,10 +102,16 @@ object LineSearch {
       val phiZero = phi(0)
       val dPhiZero = dPhi(0)
 
-      /**
-        * Nocedal Algorithm 3.5, finds a step length alpha while ensures that
-        * (aPrev, aCurr) contains a point satisfying the Strong Wolfe Conditions at
-        * each iteration.
+      /** Finds a step length alpha while ensures that (aPrev, aCurr) contains a point satisfying the Strong Wolfe
+        * Conditions at each iteration.
+        *
+        * @see {Algorithm 3.5, Nocedal}
+        *
+        * @param aPrev previous step size
+        * @param phiPrev phi(aPrev)
+        * @param aCurr current step size
+        * @param firstIter flag indicating if this is the first iteration
+        * @return Some(alpha) of the step size satisfying Strong Wolfe Conditions if success, None otherwise
         */
       def findAlpha(aPrev: Double, phiPrev: Double, aCurr: Double, firstIter: Boolean): Option[Double] = {
         if (aCurr > aMax) {
@@ -107,14 +133,18 @@ object LineSearch {
         }
       }
 
-      /**
-        * Nocedal Algorithm 3.6, generates \alpha_j between \alpha_{lo} and \alpha_{hi} and replaces
-        * one of the two endpoints while ensuring Wolfe conditions hold.
+      /** Generates alpha_j between alpha_{lo} and alpha_{hi}, and refines one of the two endpoints while ensuring
+        * Wolfe conditions hold.
+        *
+        * @see {Algorithm 3.6, Nocedal}
+        *
+        * @param aLo upper bound on bracket interval
+        * @param aHi lower bound on bracket interval
+        * @return Some(alpha) of the step size satisfying Strong Wolfe Conditions if success, None otherwise
         */
       def zoom(aLo: Double, aHi: Double): Option[Double] = {
         assert(!aLo.isNaN && !aHi.isNaN)
-        interpolate(aLo, aHi) match { // cubic interpolation
-//        Some((aLo + aHi) / 2) match { // bisection search
+        interpolate(aLo, aHi) match {
           case Some(aCurr) if aCurr >= aMax => Some(aMax)
           case Some(aCurr) if math.abs(aHi - aLo) > EPS_MIN =>
             val phiACurr = phi(aCurr)
@@ -134,10 +164,11 @@ object LineSearch {
         }
       }
 
-      /**
-        * Finds the minimizer of the Cubic interpolation of the line search
-        * objective \phi(\alpha) between [alpha_{i-1}, alpha_i]. See Nocedal (3.59).
-        **/
+      /** Finds the minimizer for the cubic interpolation within line search.
+        * @param prev previous step size
+        * @param curr current step size
+        * @return
+        */
       def interpolate(prev: Double, curr: Double): Option[Double] = {
         val d1 = dPhi(prev) + dPhi(curr) - 3D * (phi(prev) - phi(curr)) / (prev - curr)
         val d2 = signum(curr - prev) * sqrt(pow(d1, 2) - dPhi(prev) * dPhi(curr))
@@ -158,8 +189,12 @@ object LineSearch {
   }
 
 
-  /**
-    * Computes the exact step size alpha required to minimize a quadratic form.
+  /** Computes the exact step size alpha for minimizing a quadratic form induced by A along the ray x + alpha*p.
+    * @param A matrix inducing quadratic form
+    * @param df current gradient at x
+    * @param x current point
+    * @param p line search direction
+    * @return step size exactly minimizing line search
     */
   def exactLineSearch(
       A: Matrix[Double],
