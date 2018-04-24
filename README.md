@@ -62,7 +62,7 @@ resolvers +=
 
 2. Add the dependency
 ```sbt
-libraryDependencies += "com.feynmanliang.optala" % "optala_2.11" % "0.1.0-SNAPSHOT"
+libraryDependencies += "com.feynmanliang" % "optala_2.11" % "0.1.0-SNAPSHOT"
 ```
 
 Description
